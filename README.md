@@ -11,7 +11,8 @@ class Diagonal{...};
 class Invertible{...};
 class Ortogonal{...};
 
-Matriz suma(virtual Matriz m1, virtual Matrix m2);   // <-- Plantilla de la función suma. Usamos virtual para indicar qué parametros son los que deseamos especializar
+Matriz suma(virtual Matriz m1, virtual Matrix m2);   // <-- Plantilla de la función suma. Usamos virtual para indicar qué 
+                                                     // <-- parametros son los que deseamos especializar
 
 Matriz suma(Diagonal d1, Diagonal d2){
   // Implementacion de la suma de dos matrices ortogonales
