@@ -5,5 +5,25 @@ Este repositorio consta de un único fichero que nos da la opción de usar open 
 En muchas ocasiones creamos clases que deben usarse mutuamente y nos encontramos con diversas opciones válidas de implementar una funcionalidad. Supón el caso de una librería con matrices. Existen numerosos tipos de matrices y nos gustaría aprovechar al máximo las características de cada uno para optimizar las operaciones que hagamos con ellas. Y es que no es lo mismo sumar dos matrices de manera 'cotidiana' (sumar cada uno de los valores de ambas matrices) que sumar dos matrices diagonales (sumar únicamente los valores de las diagonales). Otro problema a tratar es en qué clase implementamos cada método. ¿Implementamos el método suma en la clase matriz_diagonal y que reciba un argumento de tipo matriz_invertible, o lo implementamos en la clase matriz_invertible y que reciba un argumento de tipo matriz_diagonal? Todo esto se puede solucionar con los open multi-methods. Ahí va un ejemplo de cómo implementaríamos la función suma para las matrices:
 
 ```C++
+class Matriz{...};
 
+class Diagonal{...};
+class Invertible{...};
+class Ortogonal{...};
+
+Matriz suma(Matriz m1, Matrix m2);   // <-- Plantilla de la función suma
+
+Matriz suma(Diagonal d1, Diagonal d2){
+  // Implementacion de la suma de dos matrices ortogonales
+}
+
+Matriz suma(Ortogonal o, Diagonal d){
+  // Implementacion de la suma de una matriz ortogonal y una matriz diagonal
+}
+
+Matriz suma(Invertible i, Ortogonal o){
+  // Implementacion de la suma de una matriz invertible y una matriz ortogonal 
+}
+
+// ...
 ```
