@@ -103,4 +103,7 @@ Matriz* suma(Matriz* m1, Matriz* m2){ // <-- Asegúrate de que el tipo de retorn
 }
 ```
 
+## Conclusión
+Mediante esta librería podemos usar open multi-methods aunque sea de una forma un poco fea por culpa de los templates. Aun así, el poder resolver el problema de expresión, y sobre todo el problema del multiple dispatch sin ningún tipo de intrusión es algo que merece la atención de cualquiera. 
+
 
