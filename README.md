@@ -7,22 +7,22 @@ En muchas ocasiones creamos clases que deben usarse mutuamente y nos encontramos
 ```C++
 class Matriz{...};
 
-class Diagonal{...};
-class Invertible{...};
-class Ortogonal{...};
+class Diagonal : public Matriz{...};
+class Invertible : public Matriz{...};
+class Ortogonal : public Matriz{...};
 
-Matriz suma(virtual Matriz* m1, virtual Matrix* m2);   // <-- Plantilla de la función suma. Usamos virtual para indicar qué 
+Matriz* suma(virtual Matriz* m1, virtual Matrix* m2);   // <-- Plantilla de la función suma. Usamos virtual para indicar qué 
                                                      //     parametros son los que deseamos especializar
 
-Matriz suma(Diagonal* d1, Diagonal* d2){
+Matriz* suma(Diagonal* d1, Diagonal* d2){
   // Implementacion de la suma de dos matrices ortogonales
 }
 
-Matriz suma(Ortogonal* o, Diagonal* d){
+Matriz* suma(Ortogonal* o, Diagonal* d){
   // Implementacion de la suma de una matriz ortogonal y una matriz diagonal
 }
 
-Matriz suma(Invertible* i, Ortogonal* o){
+Matriz* suma(Invertible* i, Ortogonal* o){
   // Implementacion de la suma de una matriz invertible y una matriz ortogonal 
 }
 
@@ -52,7 +52,38 @@ Las principales diferencias son las siguientes:
 Como verás cada librería tiene sus ventajas e inconvenientes. Usa la que más te convenga.
 
 ## Usando omm
-Como ejemplo usaremos las matrices. Para cada método y sus especializaciones necesitamos crear una tabla, `omm_table`.
+Como ejemplo usaremos las matrices. Para cada método y sus especializaciones necesitamos crear una tabla, una `table_omm`. Esta tabla necesita 3 ingredientes, una plantilla para indicar que parámetros son virtuales y cuáles no, una clase que contenga las especializaciones del método, y todas las clases que van a participar en la elección de la especialización correcta.
+
+### Ingrediente 1, la plantilla
+La plantilla es el tipo de función que tenemos pensado especializar. En este caso queremos sumar dos matrices y devolver el resultado, por lo que el tipo de función será la siguiente:
+```C++
+using suma_template = Matriz*(Virtual<Matriz*>,Virtual<Matriz*>);
+```
+Observa que usamos `Virtual` para indicar que cada parámetro, en este caso un puntero a matriz, se va a sustituir en cada especialización por la clase hija correspondiente.
+
+### Ingrediente 2, las especializaciones dentro de una clase o struct
+De alguna forma tenemos que indicar a `table_omm` donde están las funciones que debe usar. Para ello le pasaremos una clase que contenga cada especialización. La visibilidad de cada método debe ser pública para que `table_omm` pueda acceder, por lo que recomiendo usar `struct` en lugar de `class`. Asegúrate también de que cada especialización tenga el modificador `static` para poder acceder a ellas sin tener que crear ningún objeto.
+```C++
+struct suma_matrices{ // <-- Asegúrate de tener visibilidad pública, por eso recomiendo usar struct
+
+  static Matriz* suma(Diagonal* d1, Diagonal* d2){    // <-- Recuerda usar static en cada especialización
+    // Implementacion de la suma de dos matrices ortogonales
+  }
+  
+  static Matriz* suma(Ortogonal* o, Diagonal* d){     // <-- Recuerda usar static en cada especialización
+    // Implementacion de la suma de una matriz ortogonal y una matriz diagonal
+  }
+  
+  static Matriz* suma(Invertible* i, Ortogonal* o){   // <-- Recuerda usar static en cada especialización
+    // Implementacion de la suma de una matriz invertible y una matriz ortogonal 
+  }
+  
+  //...
+  
+}
+```
+
+### Ingrediente 3, 
 
 
 
