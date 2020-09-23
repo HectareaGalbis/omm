@@ -52,7 +52,7 @@ Las principales diferencias son las siguientes:
 Como verás cada librería tiene sus ventajas e inconvenientes. Usa la que más te convenga.
 
 ## Usando omm
-
+Como ejemplo usaremos las matrices. Para cada método y sus especializaciones necesitamos crear una tabla, `omm_table`.
 
 
 
