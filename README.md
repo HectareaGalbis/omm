@@ -91,6 +91,16 @@ Usamos los 3 ingredientes anteriores en el siguiente orden:
 1. El struct con las especializaciones
 2. La plantilla
 3. Las clases hijas
+```C++
+using suma_table = table_omm<suma_matrices,suma_template,Diagonal,Ortogonal,Invertible>;
+```
 
+### Un último paso, acceder a la tabla
+La tabla contiene un método `call` que al recibir los argumentos busca en la tabla de funciones y llama a la especialización correcta. La mejor opción es usarla dentro de la esperada función `suma`:
+```C++
+Matriz* suma(Matriz* m1, Matriz* m2){ // <-- Asegúrate de que el tipo de retorno y el tipo de los argumentos sea igual a la plantilla
+  return suma_table::call(m1,m2);     // <-- Llamamos al método call de table_omm pasándole todos los argumentos
+}
+```
 
 
