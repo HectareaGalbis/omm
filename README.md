@@ -83,7 +83,14 @@ struct suma_matrices{ // <-- Asegúrate de tener visibilidad pública, por eso r
 }
 ```
 
-### Ingrediente 3, 
+### Ingrediente 3, las clases hijas que especializan el método
+En este caso estamos usando 3 clases hijas de Matriz, que son `Diagonal`,`Ortogonal` e `Invertible`. 
+
+### Cocinando la tabla
+Usamos los 3 ingredientes anteriores en el siguiente orden:
+1. El struct con las especializaciones
+2. La plantilla
+3. Las clases hijas
 
 
 
