@@ -49,6 +49,7 @@ Las principales diferencias son las siguientes:
 * yomm2 depende de 3 librerías de Boost. omm no depende de nada.
 * yomm2 crea sus tablas de punteros a funciones en tiempo de ejecución. omm las crea en tiempo de compilación.
 * yomm2 usa una forma natural de implementar los métodos, como en el ejemplo de las matrices de arriba. omm es feillo y artificioso.
+
 Como verás cada librería tiene sus ventajas e inconvenientes. Usa la que más te convenga.
 
 ## Usando omm
