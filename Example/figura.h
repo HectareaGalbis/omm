@@ -7,7 +7,7 @@
 
 
 struct Figura{
-    virtual void area(){}   // <-- La clase debe ser polimorfica (al menos un método virtual)
+    virtual  ~Figura(){}   // <-- La clase debe ser polimorfica (al menos un mÃ©todo virtual)
 };
 
 struct Circulo : Figura{};
