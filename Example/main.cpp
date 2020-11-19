@@ -4,14 +4,6 @@
 #include "figura.h"
 #include <iostream>
 
-struct Base{
-    virtual void foo() = 0;
-};
-
-struct Derived : Base{
-    virtual void foo(){}
-};
-
 
 int main(){
 
