@@ -166,28 +166,28 @@ struct slice_virtual_type<virtual_type<T>,D>{
 *   Lista de tipos
 */
 template<typename... TS>
-struct flist;
+struct tlist;
 
 /**
 *   Lista vacia
 */
-using nil = flist<>;
+using nil = tlist<>;
 
 /**
-*   Comprueba si un tipo es una flist
+*   Comprueba si un tipo es una tlist
 */
 template<typename L>
-struct is_flist{
+struct is_tlist{
     static constexpr bool value = false;
 };
 
 template<typename... TS>
-struct is_flist<flist<TS...>>{
+struct is_tlist<tlist<TS...>>{
     static constexpr bool value = true;
 };
 
 template<typename T>
-static constexpr bool is_flist_v = is_flist<T>::value;
+static constexpr bool is_tlist_v = is_tlist<T>::value;
 
 ////---------------------------------------------------------------------------------
 
@@ -200,11 +200,11 @@ struct null{
 };
 
 template<typename T, typename... TS>
-struct null<flist<T,TS...>>{
+struct null<tlist<T,TS...>>{
     static constexpr bool value = false;
 };
 
-template<T>
+template<typename T>
 static constexpr bool null_v = null<T>::value;
 
 
@@ -215,12 +215,12 @@ template<typename T, typename L>
 struct cons;
 
 template<typename T, typename... TS>
-struct cons<T,flist<TS...>>{
-    using type = flist<T,TS...>;
+struct cons<T,tlist<TS...>>{
+    using type = tlist<T,TS...>;
 };
 
 template<typename T, typename L>
-using cons_t = cons<T,L>::type;
+using cons_t = typename cons<T,L>::type;
 
 
 /**
@@ -230,12 +230,12 @@ template<typename L>
 struct car;
 
 template<typename T, typename... TS>
-struct car<flist<T,TS...>>{
+struct car<tlist<T,TS...>>{
     using type = T;
 };
 
 template<typename L>
-using car_t = car<L>::type;
+using car_t = typename car<L>::type;
 
 
 /**
@@ -247,12 +247,12 @@ struct cdr{
 };
 
 template<typename T, typename... TS>
-struct cdr<flist<T,TS...>>{
-    using type = flist<TS...>;
+struct cdr<tlist<T,TS...>>{
+    using type = tlist<TS...>;
 };
 
 template<typename L>
-using cdr_t = cdr<L>::type;
+using cdr_t = typename cdr<L>::type;
 
 
 /**
@@ -264,8 +264,8 @@ struct length{
 };
 
 template<typename T, typename... TS>
-struct length<flist<T,TS...>>{
-    static constexpr size_t value = 1+length<flist<TS...>>::value;
+struct length<tlist<T,TS...>>{
+    static constexpr size_t value = 1+length<tlist<TS...>>::value;
 };
 
 template<typename L>
@@ -281,12 +281,12 @@ struct member{
 };
 
 template<typename T, typename R, typename... RS>
-struct member<T,flist<R,RS...>>{
-    static constexpr bool value = member<T,type_list<RS...>>::value;
+struct member<T,tlist<R,RS...>>{
+    static constexpr bool value = member<T,tlist<RS...>>::value;
 };
 
 template<typename T, typename... RS>
-struct member<T,flist<T,RS...>>{
+struct member<T,tlist<T,RS...>>{
     static constexpr bool value = true;
 };
 
@@ -297,48 +297,87 @@ static constexpr bool member_v = member<T,L>::value;
 /**
 *   Retorna el indice de un tipo en una type_list
 */
-template<Type_list L, typename T, int k>
-struct member_at_type_aux{
-    static constexpr int value = member_at_type_aux<typename cdr_type<L>::type,T,k+1>::value;
+template<typename T, typename L, int k>
+struct position_aux{
+    static constexpr int value = position_aux<T,cdr_t<L>,k+1>::value;
 };
 
-template<typename... LS, typename T, int k>
-struct member_at_type_aux<type_list<T,LS...>,T,k>{
+template<typename T, typename... LS, int k>
+struct position_aux<T,tlist<T,LS...>,k>{
     static constexpr int value = k;
 };
 
-template<Type_list L, typename T>
-requires has_type<L,T>::value
+template<typename T, typename L>
 struct position{
-    static constexpr int value = member_at_type_aux<L,T,0>::value;
+    static constexpr int value = position_aux<T,L,0>::value;
 };
 
-//
+template<typename T, typename L>
+static constexpr int position_v = position<T,L>::value;
+
+
+/**
+*   Retorna el tipo que se encuentra en la posicion k-esima de una lista
+*/
+template<typename L, int k>
+struct nth_aux{
+    using type = typename nth_aux<cdr_t<L>,k-1>::type;
+};
+
+template<typename L>
+struct nth_aux<L,0>{
+    using type = car_t<L>;
+};
+
+template<typename L, int k>
+struct nth{
+    using type = typename nth_aux<L,k>::type;
+};
+
+template<typename L, int k>
+using nth_t = typename nth<L,k>::type;
+
+
+/**
+*   Ejecuta una metafuncion sobre cada elemento de la lista
+*/
+template<template<typename> typename P, typename L>
+struct mapcar;
+
+template<template<typename> typename P, typename... TS>
+struct mapcar<P,tlist<TS...>>{
+    using type = tlist<typename P<TS>::type...>;
+};
+
+template<template<typename> typename P, typename L>
+using mapcar_t = mapcar<P,L>::type;
+
+
 ///**
-//*   Retorna el tipo que se encuentra en la posicion k-esima
+//*   Elimina los elementos de la lista que no cumplan la condicion
 //*/
-//template<Type_list L, int k>
-//requires (k<length_type<L>::value)
-//struct ref_type{
-//    using type = typename ref_type<typename cdr_type<L>::type,k-1>::type;
+//template<template<typename> typename P, typename L>
+//struct remove_if_not{
+//    using type = L;
 //};
 //
-//template<Type_list L>
-//requires (!is_null_type<L>::value)
-//struct ref_type<L,0>{
-//    using type = typename car_type<L>::type;
+//template<template<typename> typename P, typename T, typename... TS>
+//struct remove_if_not<P,tlist<T,TS...>>{
+//    using type = apply_if<typename P<T>::value,remove_if_not<P,>>
 //};
+
+
+///**
+//*   Ejecuta una metafuncion usando los elementos de una lista
+//*/
+//template<template<typename...> typename P, typename L>
+//struct apply;
 //
-//
-//template<template<typename> typename P, Type_list L>
-//struct map_type;
-//
-//template<template<typename> typename P, typename... TS>
-//struct map_type<P,type_list<TS...>>{
-//    using type = type_list<typename P<TS>::type...>;
+//template<template<typename...> typename P, typename... TS>
+//struct apply<P,tlist<TS...>>{
+//    using type = P<TS...>::type;
 //};
-//
-//
+
 ///**
 //*   Retorna false si el predicado que se pasa retorna false para algun elemento de la lista
 //*/
@@ -351,7 +390,7 @@ struct position{
 //struct and_map_type<P,type_list<T,TS...>>{
 //    static constexpr bool value = P<T>::value && and_map_type<P,type_list<TS...>>::value;
 //};
-//
+
 //
 ///**
 //*   Retorna true si el predicado que se pasa retorna true para algun elemento de la lista
@@ -367,17 +406,16 @@ struct position{
 //};
 //
 ////---------------------------------------------------------------------------------
-//
+
 ///**
-//*   Crea una lista con los tipos que son derivados de un tipo base
+//*   Crea una lista con los tipos que son derivados de un tipo base (cambiar por filter e is_base_of)
 //*/
-//template<Type_list L, typename B, Type_list D>
+//template<typename B, typename D, typename S>
 //struct make_derived_list_aux;
 //
-//template<Type_list L, typename B>
-//requires is_null_type<L>::value
-//struct make_derived_list_aux<L,B,type_list<>>{
-//    using type = L;
+//template<typename B, typename S>
+//struct make_derived_list_aux<B,tlist<>,S>{
+//    using type = S;
 //};
 //
 //template<Type_list L, typename B, Type_list D>
@@ -396,7 +434,7 @@ struct position{
 //struct make_derived_list{
 //    using type = typename make_derived_list_aux<type_list<>,B,D>::type;
 //};
-//
+
 ////---------------------------------------------------------------------------------
 //
 ///**
