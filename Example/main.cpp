@@ -1,11 +1,15 @@
 
 
 #include "omm.h"
-#include "figura.h"
+//#include "figura.h"
 #include <iostream>
 
+template<typename T>
+struct Print{};
 
 int main(){
+
+    Print<slice_type_t<const volatile int**volatile*const*&&,float>>::type;
 
     Elipse e;
     Circulo c;
