@@ -10,7 +10,9 @@ struct Figura{
     virtual  ~Figura(){}   // <-- La clase debe ser polimorfica (al menos un método virtual)
 };
 
-struct Circulo : Figura{};
+struct Elipse : Figura{};
+
+struct Circulo : Elipse{};
 
 struct Rectangulo : Figura{};
 
@@ -39,13 +41,17 @@ struct intersect{
         std::cout << "Gato - " << k << " - Circulo - Gato - Triangulo - Perro " << fl << std::endl;
     }
 
+    static void call(Gato* t, int k, Elipse& c, Gato& p, Triangulo* t2, float fl, Perro& p3){
+        std::cout << "Gato - " << k << " - Elipse - Gato - Triangulo - Perro " << fl << std::endl;
+    }
+
     static void call(Perro* t, int k, Triangulo& t2, Perro& p, Rectangulo* r, float fl, Gato& g2){
         std::cout << "Perro - " << k << " - Triangulo - Perro - Rectangulo - Gato " << fl << std::endl;
     }
 
 };
 
-using intersect_table = table_omm<intersect,intersect_template,Circulo,Perro,Rectangulo,Gato,Triangulo>;
+using intersect_table = table_omm<intersect,intersect_template,Circulo,Perro,Rectangulo,Gato,Triangulo,Elipse>;
 
 void intersect(Animal* f, int k, Figura& g, Animal& a, Figura* t, float fl, Animal& a2){
     intersect_table::call(f,k,g,a,t,fl,a2);

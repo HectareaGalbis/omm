@@ -7,6 +7,7 @@
 
 int main(){
 
+    Elipse e;
     Circulo c;
     Rectangulo r;
     Triangulo t;
@@ -14,6 +15,7 @@ int main(){
     Figura& f1 = c;
     Figura& f2 = r;
     Figura& f3 = t;
+    Figura& f4 = e;
 
     Perro p;
     Gato g;
@@ -23,6 +25,7 @@ int main(){
 
     intersect(&a1,1000,f2,a1,&f2,3.0,a1);
     intersect(&a2,500,f1,a2,&f3,5.0,a1);
+    intersect(&a2,500,f4,a2,&f3,5.0,a1);
     intersect(&a1,250,f3,a1,&f2,7.0,a2);
 
 
