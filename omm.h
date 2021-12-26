@@ -13,19 +13,19 @@
 */
 template<typename T>
 struct core_type{
-    using type = std::remove_cv<T>::type;
+    using type = typename std::remove_cv<T>::type;
 };
 
 template<typename T>
 requires std::is_reference<T>::value
 struct core_type<T>{
-    using type = core_type<typename std::remove_cvref<T>::type>::type;
+    using type = typename core_type<typename std::remove_cvref<T>::type>::type;
 };
 
 template<typename T>
 requires std::is_pointer<T>::value
 struct core_type<T>{
-    using type = core_type<typename std::remove_pointer<T>::type>::type;
+    using type = typename core_type<typename std::remove_pointer<T>::type>::type;
 };
 
 //---------------------------------------------------------------------------------
@@ -42,37 +42,37 @@ struct slice_type{
 template<typename N, typename S>
 requires (std::is_const<N>::value && !std::is_volatile<N>::value)
 struct slice_type<N,S>{
-    using type = std::add_const<typename slice_type<typename std::remove_const<N>::type,S>::type>::type;
+    using type = typename std::add_const<typename slice_type<typename std::remove_const<N>::type,S>::type>::type;
 };
 
 template<typename N, typename S>
 requires (std::is_volatile<N>::value && !std::is_const<N>::value)
 struct slice_type<N,S>{
-    using type = std::add_volatile<typename slice_type<typename std::remove_volatile<N>::type,S>::type>::type;
+    using type = typename std::add_volatile<typename slice_type<typename std::remove_volatile<N>::type,S>::type>::type;
 };
 
 template<typename N, typename S>
 requires (std::is_volatile<N>::value && std::is_const<N>::value)
 struct slice_type<N,S>{
-    using type = std::add_cv<typename slice_type<typename std::remove_cv<N>::type,S>::type>::type;
+    using type = typename std::add_cv<typename slice_type<typename std::remove_cv<N>::type,S>::type>::type;
 };
 
 template<typename N, typename S>
 requires std::is_lvalue_reference<N>::value
 struct slice_type<N,S>{
-    using type = std::add_lvalue_reference<typename slice_type<typename std::remove_reference<N>::type,S>::type>::type;
+    using type = typename std::add_lvalue_reference<typename slice_type<typename std::remove_reference<N>::type,S>::type>::type;
 };
 
 template<typename N, typename S>
 requires std::is_rvalue_reference<N>::value
 struct slice_type<N,S>{
-    using type = std::add_rvalue_reference<typename slice_type<typename std::remove_reference<N>::type,S>::type>::type;
+    using type = typename std::add_rvalue_reference<typename slice_type<typename std::remove_reference<N>::type,S>::type>::type;
 };
 
 template<typename N, typename S>
 requires (std::is_pointer<N>::value && !std::is_volatile<N>::value && !std::is_const<N>::value)
 struct slice_type<N,S>{
-    using type = std::add_pointer<typename slice_type<typename std::remove_pointer<N>::type,S>::type>::type;
+    using type = typename std::add_pointer<typename slice_type<typename std::remove_pointer<N>::type,S>::type>::type;
 };
 
 //---------------------------------------------------------------------------------
@@ -294,13 +294,13 @@ struct member_at_type{
 template<Type_list L, int k>
 requires (k<length_type<L>::value)
 struct ref_type{
-    using type = ref_type<typename cdr_type<L>::type,k-1>::type;
+    using type = typename ref_type<typename cdr_type<L>::type,k-1>::type;
 };
 
 template<Type_list L>
 requires (!is_null_type<L>::value)
 struct ref_type<L,0>{
-    using type = car_type<L>::type;
+    using type = typename car_type<L>::type;
 };
 
 
@@ -357,18 +357,18 @@ struct make_derived_list_aux<L,B,type_list<>>{
 template<Type_list L, typename B, Type_list D>
 requires std::is_base_of<B,typename car_type<D>::type>::value
 struct make_derived_list_aux<L,B,D>{
-    using type = cons_type<typename car_type<D>::type,typename make_derived_list_aux<L,B,typename cdr_type<D>::type>::type>::type;
+    using type = typename cons_type<typename car_type<D>::type,typename make_derived_list_aux<L,B,typename cdr_type<D>::type>::type>::type;
 };
 
 template<Type_list L, typename B, Type_list D>
 requires (!std::is_base_of<B,typename car_type<D>::type>::value)
 struct make_derived_list_aux<L,B,D>{
-    using type = make_derived_list_aux<L,B,typename cdr_type<D>::type>::type;
+    using type = typename make_derived_list_aux<L,B,typename cdr_type<D>::type>::type;
 };
 
 template<typename B, Type_list D>
 struct make_derived_list{
-    using type = make_derived_list_aux<type_list<>,B,D>::type;
+    using type = typename make_derived_list_aux<type_list<>,B,D>::type;
 };
 
 //---------------------------------------------------------------------------------
@@ -383,17 +383,17 @@ struct get_virtual_core_types_aux{
 
 template<Type_list N, Virtual_type T, typename... TS>
 struct get_virtual_core_types_aux<N,type_list<T,TS...>>{
-    using type = cons_type<typename core_type<typename T::type>::type,typename get_virtual_core_types_aux<N,type_list<TS...>>::type>::type;
+    using type = typename cons_type<typename core_type<typename T::type>::type,typename get_virtual_core_types_aux<N,type_list<TS...>>::type>::type;
 };
 
 template<Type_list N, typename T, typename... TS>
 struct get_virtual_core_types_aux<N,type_list<T,TS...>>{
-    using type = get_virtual_core_types_aux<N,type_list<TS...>>::type;
+    using type = typename get_virtual_core_types_aux<N,type_list<TS...>>::type;
 };
 
 template<Type_list L>
 struct get_virtual_core_types{
-    using type = get_virtual_core_types_aux<type_list<>,L>::type;
+    using type = typename get_virtual_core_types_aux<type_list<>,L>::type;
 };
 
 //---------------------------------------------------------------------------------
@@ -403,17 +403,17 @@ struct get_virtual_core_types{
 */
 template<Type_list L, Type_list D>
 struct slice_virtual_types{
-    using type = create_type_list<>::type;
+    using type = typename create_type_list<>::type;
 };
 
 template<typename L, typename... LS, Type_list D>
 struct slice_virtual_types<type_list<L,LS...>,D>{
-    using type = cons_type<L,typename slice_virtual_types<type_list<LS...>,D>::type>::type;
+    using type = typename cons_type<L,typename slice_virtual_types<type_list<LS...>,D>::type>::type;
 };
 
 template<Virtual_type L, typename... LS, Type_list D>
 struct slice_virtual_types<type_list<L,LS...>,D>{
-    using type = cons_type<typename slice_virtual_type<L,typename car_type<D>::type>::type,typename slice_virtual_types<type_list<LS...>, typename cdr_type<D>::type>::type>::type;
+    using type = typename cons_type<typename slice_virtual_type<L,typename car_type<D>::type>::type,typename slice_virtual_types<type_list<LS...>, typename cdr_type<D>::type>::type>::type;
 };
 
 
@@ -422,17 +422,17 @@ struct slice_virtual_types<type_list<L,LS...>,D>{
 */
 template<Type_list L>
 struct extract_virtual_types{
-    using type = create_type_list<>::type;
+    using type = typename create_type_list<>::type;
 };
 
 template<typename L, typename... LS>
 struct extract_virtual_types<type_list<L,LS...>>{
-    using type = cons_type<L,typename extract_virtual_types<type_list<LS...>>::type>::type;
+    using type = typename cons_type<L,typename extract_virtual_types<type_list<LS...>>::type>::type;
 };
 
 template<Virtual_type L, typename... LS>
 struct extract_virtual_types<type_list<L,LS...>>{
-    using type = cons_type<typename L::type,typename extract_virtual_types<type_list<LS...>>::type>::type;
+    using type = typename cons_type<typename L::type,typename extract_virtual_types<type_list<LS...>>::type>::type;
 };
 
 
@@ -441,17 +441,17 @@ struct extract_virtual_types<type_list<L,LS...>>{
 */
 template<Type_list L, Type_list D>
 struct extract_slice_virtual_types{
-    using type = create_type_list<>::type;
+    using type = typename create_type_list<>::type;
 };
 
 template<typename L, typename... LS, Type_list D>
 struct extract_slice_virtual_types<type_list<L,LS...>,D>{
-    using type = cons_type<L,typename extract_slice_virtual_types<type_list<LS...>,D>::type>::type;
+    using type = typename cons_type<L,typename extract_slice_virtual_types<type_list<LS...>,D>::type>::type;
 };
 
 template<Virtual_type L, typename... LS, Type_list D>
 struct extract_slice_virtual_types<type_list<L,LS...>,D>{
-    using type = cons_type<typename slice_type<typename L::type,typename car_type<D>::type>::type,typename extract_slice_virtual_types<type_list<LS...>, typename cdr_type<D>::type>::type>::type;
+    using type = typename cons_type<typename slice_type<typename L::type,typename car_type<D>::type>::type,typename extract_slice_virtual_types<type_list<LS...>, typename cdr_type<D>::type>::type>::type;
 };
 
 //---------------------------------------------------------------------------------
@@ -558,7 +558,7 @@ struct extract_arg_types;
 
 template<typename R, typename... AS>
 struct extract_arg_types<R(AS...)>{
-    using type = create_type_list<AS...>::type;
+    using type = typename create_type_list<AS...>::type;
 };
 
 
@@ -661,7 +661,7 @@ struct method_template{
 */
 template<Virtual_method_template M>
 struct create_method_template{
-    using type = extract_method_virtual_types<M>::type;
+    using type = typename extract_method_virtual_types<M>::type;
 };
 
 
@@ -687,7 +687,7 @@ concept Method_template = is_method_template<T>::value;
 */
 template<Method_template M>
 struct method_template_to_function_type{
-    using type = type_list_to_function_type<typename M::type_ret,typename M::type_args>::type;
+    using type = typename type_list_to_function_type<typename M::type_ret,typename M::type_args>::type;
 };
 
 
@@ -868,12 +868,12 @@ struct append_int<int_list<ks...>,int_list<rs...>>{
 */
 template<int k>
 struct make_zeros{
-    using type = cons_int<0,typename make_zeros<k-1>::type>::type;
+    using type = typename cons_int<0,typename make_zeros<k-1>::type>::type;
 };
 
 template<>
 struct make_zeros<0>{
-    using type = create_int_list<>::type;
+    using type = typename create_int_list<>::type;
 };
 
 //---------------------------------------------------------------------------------
@@ -892,7 +892,7 @@ struct decrease_int_list<int_list<k>,M>{
 template<int k, int j, int... ks, int r, int s, int... rs>
 requires (!equal_int<int_list<j,ks...>,typename make_zeros<length_int<int_list<j,ks...>>::value>::type>::value)
 struct decrease_int_list<int_list<k,j,ks...>,int_list<r,s,rs...>>{
-    using type = cons_int<k,typename decrease_int_list<int_list<j,ks...>,int_list<s,rs...>>::type>::type;
+    using type = typename cons_int<k,typename decrease_int_list<int_list<j,ks...>,int_list<s,rs...>>::type>::type;
 };
 
 template<int k, int j, int... ks, int r, int s, int... rs>
@@ -915,12 +915,12 @@ struct make_combinations_aux{
 template<typename T, typename... TS, Int_list M>
 requires (!equal_int<T,typename make_zeros<length_int<T>::value>::type>::value)
 struct make_combinations_aux<type_list<T,TS...>,M>{
-    using type = make_combinations_aux<type_list<typename decrease_int_list<T,M>::type,T,TS...>,M>::type;
+    using type = typename make_combinations_aux<type_list<typename decrease_int_list<T,M>::type,T,TS...>,M>::type;
 };
 
 template<Int_list M>
 struct make_combinations{
-    using type = make_combinations_aux<type_list<M>,M>::type;
+    using type = typename make_combinations_aux<type_list<M>,M>::type;
 };
 
 //---------------------------------------------------------------------------------
@@ -990,13 +990,13 @@ struct index_to_type;
 template<Base_of_any B, Base_of_any... BS, typename Ba, int k>
 requires std::same_as<typename B::type_base,B>
 struct index_to_type<type_id<B,BS...>,Ba,k>{
-    using type = ref_type<typename B::type_derived,k>::type;
+    using type = typename ref_type<typename B::type_derived,k>::type;
 };
 
 template<Base_of_any B, Base_of_any... BS, typename Ba, int k>
 requires (!std::same_as<typename B::type_base,B>)
 struct index_to_type<type_id<B,BS...>,Ba,k>{
-    using type = ref_type<typename B::type_derived,k>::type;
+    using type = typename ref_type<typename B::type_derived,k>::type;
 };
 
 
@@ -1010,7 +1010,7 @@ struct indices_to_types{
 
 template<Base_of_any B, Base_of_any... BS, int k, int... ks>
 struct indices_to_types<type_id<B,BS...>,int_list<k,ks...>>{
-    using type = cons_type<typename index_to_type<type_id<B,BS...>,typename B::type_base,k>::type,typename indices_to_types<type_id<BS...>,int_list<ks...>>::type>::type;
+    using type = typename cons_type<typename index_to_type<type_id<B,BS...>,typename B::type_base,k>::type,typename indices_to_types<type_id<BS...>,int_list<ks...>>::type>::type;
 };
 
 //---------------------------------------------------------------------------------
@@ -1036,7 +1036,7 @@ struct make_derived_combinations_aux;
 
 template<Type_id C, Int_list... NS>
 struct make_derived_combinations_aux<C,type_list<NS...>>{
-    using type = create_type_list<typename indices_to_types<C,NS>::type...>::type;
+    using type = typename create_type_list<typename indices_to_types<C,NS>::type...>::type;
 };
 
 template<int k>
@@ -1046,7 +1046,7 @@ struct sub1{
 
 template<Type_id C>
 struct make_derived_combinations{
-    using type = make_derived_combinations_aux<C,typename make_combinations<typename map_int<sub1,typename length_of_each_base<C>::type>::type>::type>::type;
+    using type = typename make_derived_combinations_aux<C,typename make_combinations<typename map_int<sub1,typename length_of_each_base<C>::type>::type>::type>::type;
 };
 
 //---------------------------------------------------------------------------------
