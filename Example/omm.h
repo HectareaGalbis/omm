@@ -1151,7 +1151,7 @@ struct generate_table_aux3;
 
 template<Type_list... DS, Virtual_method_template O, typename F>
 struct generate_table_aux3<type_list<DS...>,O,F>{
-    static constexpr std::add_pointer<typename method_template_to_function_type<typename create_method_template<O>::type>::type>::type value[] =
+    static constexpr typename std::add_pointer<typename method_template_to_function_type<typename create_method_template<O>::type>::type>::type value[] =
                     {make_function_cell<typename create_method_template<O>::type,typename extract_slice_method_virtual_types<O,DS>::type,F>::value...};
 };
 
