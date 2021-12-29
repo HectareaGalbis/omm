@@ -51,7 +51,7 @@ struct intersect{
 
 };
 
-using intersect_table = table_omm<intersect,intersect_template,Circulo,Perro,Rectangulo,Gato,Triangulo,Elipse>;
+using intersect_table = table_omm<intersect,intersect_template,WithTypes<Circulo,Perro,Rectangulo,Gato,Triangulo,Elipse>>;
 
 void intersect(Animal* f, int k, Figura& g, Animal& a, Figura* t, float fl, Animal& a2){
     intersect_table::call(f,k,g,a,t,fl,a2);

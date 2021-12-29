@@ -52,7 +52,7 @@ template<typename T>
 using add1_t = typename add1<T>::type;
 
 template<typename T>
-static constexpr add1_v = add1<T>::value;
+static constexpr int add1_v = add1<T>::value;
 
 //---------------------------------------------------------------------------------
 
@@ -66,7 +66,7 @@ template<typename T>
 using sub1_t = typename sub1<T>::type;
 
 template<typename T>
-static constexpr sub1_v = sub1<T>::value;
+static constexpr int sub1_v = sub1<T>::value;
 
 //---------------------------------------------------------------------------------
 
@@ -130,6 +130,12 @@ struct cons{
     using type = cons<T,S>;
 };
 
+template<typename T>
+struct cons_c{
+    template<typename S>
+    using type = cons<T,S>;
+};
+
 //---------------------------------------------------------------------------------
 
 /**
@@ -139,7 +145,7 @@ template<typename... TS>
 struct tlist : nil{};
 
 template<typename T, typename... TS>
-struct tlist<T,TS...> : cons<T,tlist<TS...>::type>{};
+struct tlist<T,TS...> : cons<T,typename tlist<TS...>::type>{};
 
 template<typename... TS>
 using tlist_t = tlist<TS...>::type;
@@ -242,7 +248,7 @@ template<typename... S>
 struct append<nil,S...> : append<S...>{};
 
 template<typename T, typename R, typename... S>
-struct append<cons<T,R>,S...> : cons<T,append<R,S...>::type>{};
+struct append<cons<T,R>,S...> : cons<T,typename append<R,S...>::type>{};
 
 template<typename L, typename S>
 using append_t = append<L,S>::type;
@@ -259,7 +265,7 @@ template<>
 struct length<nil> : zero{};
 
 template<typename T, typename S>
-struct length<cons<T,S>> : add1<length<S>::type>{};
+struct length<cons<T,S>> : add1<typename length<S>::type>{};
 
 template<typename L>
 using length_t = typename length<L>::type;
@@ -315,6 +321,9 @@ static constexpr int position_v = position<T,L>::value;
 /**
 *   Devuelve el primer elemento de una lista que cumple con una condicion
 */
+template<template<typename> typename P, typename L>
+struct find_if{};
+
 template<typename Found, template<typename> typename P, typename T, typename L>
 struct found_if : find_if<P,L>{};
 
@@ -322,9 +331,6 @@ template<template<typename> typename P, typename T, typename L>
 struct found_if<std::true_type,P,T,L>{
     using type = T;
 };
-
-template<template<typename> typename P, typename L>
-struct find_if{};
 
 template<template<typename> typename P>
 struct find_if<P,nil> : nil{};
@@ -350,7 +356,7 @@ template<typename L, typename K>
 struct nth : nth_aux<L,K>{};
 
 template<typename L, typename K>
-using nth_t = typename nth<L,k>::type;
+using nth_t = typename nth<L,K>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -364,7 +370,7 @@ template<template<typename> typename P>
 struct mapcar<P,nil> : nil{};
 
 template<template<typename> typename P, typename T, typename S>
-struct mapcar<P,cons<T,S>> : cons<P<T>::type,mapcar<P,S>>{};
+struct mapcar<P,cons<T,S>> : cons<typename P<T>::type,typename mapcar<P,S>::type>{};
 
 template<template<typename> typename P, typename L>
 using mapcar_t = typename mapcar<P,L>::type;
@@ -375,7 +381,10 @@ using mapcar_t = typename mapcar<P,L>::type;
 *   Realiza un fold de derecha a izquierda
 */
 template<template<typename,typename> typename P, typename I, typename L>
-struct reduce_from_end : cons<typename P<reduce_from_end<P,I,cdr_t<L>>::type,car_t<L>>{};
+struct reduce_from_end : P<typename reduce_from_end<P,I,cdr_t<L>>::type,car_t<L>>{};
+
+template<template<typename,typename> typename P, typename I, typename T>
+struct reduce_from_end<P,I,cons<T,nil>> : P<I,T>{};
 
 template<template<typename,typename> typename P, typename I, typename L>
 using reduce_from_end_t = typename reduce_from_end<P,I,L>::type;
@@ -385,11 +394,11 @@ using reduce_from_end_t = typename reduce_from_end<P,I,L>::type;
 /**
 *   Realiza un cons si B es true_type
 */
-template<typename B, typename T, typename S>
+template<typename B, typename T, typename L>
 struct cons_if : cons<T,L>{};
 
-template<typename T, typename S>
-struct cons_if<std::false_type,T,S> : S{};
+template<typename T, typename L>
+struct cons_if<std::false_type,T,L> : L{};
 
 template<typename B, typename T, typename L>
 using cons_if_t = typename cons_if<B,T,L>::type;
@@ -402,7 +411,7 @@ using cons_if_t = typename cons_if<B,T,L>::type;
 template<template<typename> typename P, typename L>
 struct remove_if_not{};
 
-template<template<typename> typename P, typename L>
+template<template<typename> typename P>
 struct remove_if_not<P,nil> : nil{};
 
 template<template<typename> typename P, typename T, typename S>
@@ -423,7 +432,7 @@ template<typename T, typename... TS>
 struct apply_aux<T,TS...> : T{};
 
 template<typename T, typename S, typename... TS>
-struct apply_aux<T,S,TS...> : cons<T,apply_aux<S,TS...>::type>{};
+struct apply_aux<T,S,TS...> : cons<T,typename apply_aux<S,TS...>::type>{};
 
 template<template<typename...> typename P, typename... S>
 struct apply : apply_collection<P,tlist_to_collection_t<typename apply_aux<S...>::type>>{};
@@ -443,16 +452,16 @@ struct apply_c{
 *   Retorna false_type si algun elemento de la lista es false_type
 */
 template<typename... TS>
-struct and : std::true_type{};
+struct and_type : std::true_type{};
 
 template<typename T, typename... TS>
-struct and<T,TS...> : and<TS...>{};
+struct and_type<T,TS...> : and_type<TS...>{};
 
 template<typename... TS>
-struct and<std::false_type,TS...> : std::false_type{};
+struct and_type<std::false_type,TS...> : std::false_type{};
 
 template<typename... TS>
-using and_t = typename and<L>::type;
+using and_type_t = typename and_type<TS...>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -460,16 +469,16 @@ using and_t = typename and<L>::type;
 *   Retorna false_type si algun elemento de la lista es false_type
 */
 template<typename... TS>
-struct or : std::false_type{};
-
-template<typename T, typename... TS>
-struct or<T,TS...> : std::true_type{};
+struct or_type : std::false_type{};
 
 template<typename... TS>
-struct or<std::false_type,TS...> : or<TS...>{};
+struct or_type<std::true_type,TS...> : std::true_type{};
 
 template<typename... TS>
-using or_t = typename or<L>::type;
+struct or_type<std::false_type,TS...> : or_type<TS...>{};
+
+template<typename... TS>
+using or_type_t = typename or_type<TS...>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -481,7 +490,7 @@ template<typename L, typename S>
 struct zip : nil{};
 
 template<typename P, typename Q, typename R, typename S>
-struct zip<cons<P,Q>,cons<R,S>> : cons<list_t<P,R>,typename zip<Q,S>::type>{};
+struct zip<cons<P,Q>,cons<R,S>> : cons<tlist_t<P,R>,typename zip<Q,S>::type>{};
 
 template<typename L, typename S>
 using zip_t = typename zip<L,S>::type;
@@ -674,7 +683,7 @@ template<typename VT, typename S>
 struct slice_virtual_type : virtual_type<slice_type_t<open_virtual_type_t<VT>,S>>{};
 
 template<typename VT, typename S>
-using slice_virtual_type_t = typename slice_virtual_type_t<VT,S>::type;
+using slice_virtual_type_t = typename slice_virtual_type<VT,S>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -682,13 +691,13 @@ using slice_virtual_type_t = typename slice_virtual_type_t<VT,S>::type;
 *   Comprueba si un tipo de dato es un puntero o una referencia a un tipo polimorfico (que contiene al menos un metodo virtual).
 */
 template<typename T>
-struct is_polymorphic_pr : or<std::is_polymorphic_t<std::remove_pointer_t<T>>,std::is_polymorphic_t<std::remove_reference_t<T>>>{};
+struct is_polymorphic_pr : or_type<std::is_polymorphic_t<std::remove_pointer_t<T>>,std::is_polymorphic_t<std::remove_reference_t<T>>>{};
 
 template<typename T>
 using is_polymorphic_pr_t = typename is_polymorphic_pr<T>::type;
 
 template<typename T>
-static constexpr bool is_polymorphic_pr_v = is_virtual_valid<T>::value;
+static constexpr bool is_polymorphic_pr_v = is_polymorphic_pr<T>::value;
 
 //---------------------------------------------------------------------------------
 
@@ -714,7 +723,7 @@ using Virtual = std::enable_if_t<is_polymorphic_pr_v<T>,virtual_type<T>>;
 *   Genera un base of many a partir de un tipo base y una lista de tipos cualquiera.
 */
 template<typename B, typename DL>
-struct create_base_of_many : cons<B,remove_if_not<is_base_of_c<B>::template type,DL>>{};
+struct create_base_of_many : cons<B,remove_if_not_t<std::is_base_of_c<B>::template type,DL>>{};
 
 template<typename B, typename DL>
 using create_base_of_many_t = typename create_base_of_many<B,DL>::type;
@@ -737,7 +746,7 @@ template<typename BA>
 using length_of_derived_t = length_of_derived<BA>::type;
 
 template<typename BA>
-using length_of_derived_v = length_of_derived<BA>::value;
+static constexpr int length_of_derived_v = length_of_derived<BA>::value;
 
 //---------------------------------------------------------------------------------
 
@@ -745,10 +754,10 @@ using length_of_derived_v = length_of_derived<BA>::value;
 *   Dado un indice, devuelve el tipo derivado que ocupa dicha posicion
 */
 template<typename BA, typename K>
-using nth_derived = nth<cdr_t<BA>>;
+using nth_derived = nth<cdr_t<BA>,K>;
 
-template<typename BA>
-using nth_derived_t = typename nth_derived<BA>::type;
+template<typename BA, typename K>
+using nth_derived_t = typename nth_derived<BA,K>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -779,23 +788,29 @@ static constexpr int position_derived_v = position_derived<BM,D>::value;
 *   Recibe un type_info de algun objeto y devuelve el indice que ocupa su tipo en un
 *   base_of_many.
 */
-static int position_derived_runtime_aux(const std::type_info& info){
-    return 0;
-}
+template<typename BM>
+struct position_derived_runtime_aux{
+    static int call(const std::type_info& info){
+        return 0;
+    }
+};
 
 template<typename D, typename S>
-static int position_derived_runtime_aux<cons<D,S>>(const std::type_info& info){
-    if (info == typeid(D))
-        return 0;
-    else
-        return 1+position_derived_runtime_aux<S>(info);
-}
+struct position_derived_runtime_aux<cons<D,S>>{
+    static int call(const std::type_info& info){
+        if (info == typeid(D))
+            return 0;
+        else
+            return 1+position_derived_runtime_aux<S>::call(info);
+    }
+};
 
 template<typename BM>
-static int position_derived_runtime(const std::type_info& info){
-    return position_derived_runtime_aux<cdr_t<BM>>::call(info);
-}
-
+struct position_derived_runtime{
+    static int call(const std::type_info& info){
+        return position_derived_runtime_aux<cdr_t<BM>>::call(info);
+    }
+};
 
 //---------------------------------------------------------------------------------
 //---------------------------------- Signature ------------------------------------
@@ -821,6 +836,9 @@ struct ftype_to_sign{};
 
 template<typename R, typename... AS>
 struct ftype_to_sign<R(AS...)> : tlist<R,AS...>{};
+
+template<typename T>
+using ftype_to_sign_t = typename ftype_to_sign<T>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -866,10 +884,10 @@ template<typename VBS>
 struct vbsign_to_dsign<VBS,nil> : VBS{};
 
 template<typename T, typename S, typename DL>
-struct vbsign_to_dsign<cons<virtual_type<T>,S>,DL> : cons<slice_type_t<T,car_t<D>>,typename vbsign_to_dsign<S,cdr_t<D>>::type>{};
+struct vbsign_to_dsign<cons<virtual_type<T>,S>,DL> : cons<slice_type_t<T,car_t<DL>>,typename vbsign_to_dsign<S,cdr_t<DL>>::type>{};
 
 template<typename T, typename S, typename DL>
-struct vbsign_to_dsign<cons<T,S>,D> : cons<T,vbsign_to_dsign<S,DL>>{};
+struct vbsign_to_dsign<cons<T,S>,DL> : cons<T,vbsign_to_dsign<S,DL>>{};
 
 template<typename VBS, typename DL>
 using vbsign_to_dsign_t = typename vbsign_to_dsign<VBS,DL>::type;
@@ -907,11 +925,11 @@ struct vbsign_to_bsign<nil> : nil{};
 template<typename B, typename BS>
 struct vbsign_to_bsign<cons<virtual_type<B>,BS>> : cons<B,typename vbsign_to_bsign<BS>::type>{};
 
-template<typename B, typename BS, typename DL>
-struct vbsign_to_bsign<cons<B,BS>,D> : cons<B,vbsign_to_bsign<S,DL>>{};
+template<typename B, typename BS>
+struct vbsign_to_bsign<cons<B,BS>> : cons<B,typename vbsign_to_bsign<BS>::type>{};
 
-template<typename VBS, typename DL>
-using vbsign_to_bsign_t = typename vbsign_to_bsign<VBS,DL>::type;
+template<typename VBS>
+using vbsign_to_bsign_t = typename vbsign_to_bsign<VBS>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -995,7 +1013,7 @@ struct make_function_cell_aux<std::true_type,F,collection<R,Bargs...>,collection
 
 template<typename F, typename BS, typename DS>
 struct make_function_cell : make_function_cell_aux<has_implementation_t<F,tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>,
-                                                   tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>{};
+                                                   F,tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>{};
 
 template<typename F, typename BC, typename DC>
 auto make_function_cell_v = make_function_cell<F,BC,DC>::value;
@@ -1008,7 +1026,7 @@ auto make_function_cell_v = make_function_cell<F,BC,DC>::value;
 *   Inserta un elemento en cada lista que se encuentra en una lista
 */
 template<typename T, typename LL>
-using cons_all = mapcar<cons_c<T>::template type,LL>{};
+using cons_all = mapcar<cons_c<T>::template type,LL>;
 
 template<typename T, typename LL>
 using cons_all_t = cons_all<T,LL>::type;
@@ -1025,7 +1043,7 @@ struct cons_all_c_inv{
 *   Realiza el producto cartesiano de dos listas
 */
 template<typename L, typename M>
-struct cartesian_product_aux{} : apply<append,mapcar_t<cons_all_c_inv<M>::template type,L>>{};
+struct cartesian_product_aux : apply<append,mapcar_t<cons_all_c_inv<M>::template type,L>>{};
 
 template<typename... LS>
 struct cartesian_product : reduce_from_end<flip<cartesian_product_aux>::template type,tlist_t<nil>,tlist_t<LS...>>{};
@@ -1055,11 +1073,11 @@ using less_numbers_t = less_numbers<M>::type;
 /**
 *   Crea una lista de todas las combinaciones de numeros entre 0 y cada numero de la lista.
 */
-template<typename M>
-struct make_combinations : apply<cartesian_product,mapcar_t<less_numbers,M>>{};
+template<typename TID>
+struct make_indices : apply<cartesian_product,mapcar_t<less_numbers,mapcar_t<length_of_derived,TID>>>{};
 
-template<typename M>
-using make_combinations_t = typename make_combinations<M>::type;
+template<typename TID>
+using make_indices_t = typename make_indices<TID>::type;
 
 //---------------------------------------------------------------------------------
 //------------------------------- Type id converter -------------------------------
@@ -1078,7 +1096,7 @@ template<typename BCL, typename DL>
 struct create_type_id : mapcar<create_base_of_many_c_inv<DL>::template type,BCL>{};
 
 template<typename BCL, typename DL>
-struct create_type_id_t = typename create_type_id<VBS,D>::type;
+using create_type_id_t = typename create_type_id<BCL,DL>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -1113,11 +1131,11 @@ using length_of_each_base_t = typename length_of_each_base<Tid>::type;
 /**
 *   Devuelve una lista con todas las posibles combinaciones de tipos derivados
 */
-template<typename Tid, typename Comb>
-struct make_derived_combinations : mapcar<indices_to_types_c<Tid>::template type,Comb>{};
+template<typename Tid, typename IND>
+struct make_derived_combinations : mapcar<indices_to_types_c<Tid>::template type,IND>{};
 
-template<typename Tid, typename Comb>
-using make_derived_combinations_t = typename make_derived_combinations<Tid,Comb>::type;
+template<typename Tid, typename IND>
+using make_derived_combinations_t = typename make_derived_combinations<Tid,IND>::type;
 
 
 //---------------------------------------------------------------------------------
@@ -1126,7 +1144,8 @@ using make_derived_combinations_t = typename make_derived_combinations<Tid,Comb>
 *   Devuelve el indice del puntero a la funcion que se debe llamar a partir de los argumentos
 */
 template<typename Tid, typename BS, typename... AS>
-struct get_index_aux : one{
+struct get_index_aux{
+    static constexpr int current_multiplier = 1;
     static int call(AS... as){
         return 0;
     }
@@ -1134,7 +1153,7 @@ struct get_index_aux : one{
 
 template<typename Tid, typename B, typename BS, typename A, typename... AS>
 struct get_index_aux<Tid,cons<B,BS>,A,AS...>{
-    static constexpr int current_multiplier = get_index_aux<Tid,BS,AS...>::current_multiplier
+    static constexpr int current_multiplier = get_index_aux<Tid,BS,AS...>::current_multiplier;
     static int call(A a, AS... as){
         return get_index_aux<Tid,BS,AS...>::call(std::forward<AS>(as)...);
     }
@@ -1150,9 +1169,12 @@ struct get_index_aux<cons<T,TS>,cons<virtual_type<B>,BS>,A,AS...>{
 };
 
 template<typename Tid, typename BS, typename... AS>
-static int get_index(AS... as){
-    return get_index_aux<Tid,BS,AS...>::call(std::forward<AS>(as)...);
-}
+struct get_index{
+    static int call(AS... as){
+        return get_index_aux<Tid,BS,AS...>::call(std::forward<AS>(as)...);
+    }
+};
+
 
 //---------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------
@@ -1164,12 +1186,15 @@ template<typename F, typename BS, typename DSComb>
 struct create_table_omm_aux{};
 
 template<typename F, typename BS, typename... DS>
-struct create_table_omm_aux{
+struct create_table_omm_aux<F,BS,collection<DS...>>{
     static constexpr auto value = {make_function_cell_v<F,BS,DS>...};
 };
 
 template<typename F, typename BS, typename DSComb>
 struct create_table_omm : create_table_omm_aux<F,BS,tlist_to_collection_t<DSComb>>{};
+
+template<typename F, typename BS, typename DSComb>
+static constexpr auto create_table_omm_v = create_table_omm<F,BS,DSComb>::value;
 
 
 //---------------------------------------------------------------------------------
@@ -1179,25 +1204,25 @@ struct create_table_omm : create_table_omm_aux<F,BS,tlist_to_collection_t<DSComb
 //---------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------
-//                              vbsign_to_bsign  -------------> BS = tlist<R,BArgs> ----------------
-//                                              |                                                   |
-//                                              |                                                   |
-//                                              |                               make_function_cell  |
-//                        ftype_to_sign         |                                                   v
-//funtion_type = R(VBArgs...) ---> VBS = tlist<R,VBArgs...> *--->* DS = tlist<R,DArgs...> *--->* function_cell  <----- type with implementations
-//                                                                          *
-//                                         | *vbsign_to_dsign_combinations* ^
-//                                         |               vbsign_to_dsign  |
-//                                         |                                |
-//                                         |                                *                                   *make_combinations*
-//                    get_base_core_types  |                      Combination Derived Type *<---* Combination Number *<----*
+//                              vbsign_to_bsign  -------------> BS = tlist<R,BArgs> ---------------------
+//                                              |                                                        |
+//                                              |                                    *create_table_omm*  |
+//                                              |                                    make_function_cell  |
+//                        ftype_to_sign         |                                                        v
+//funtion_type = R(VBArgs...) ---> VBS = tlist<R,VBArgs...> *--->* DSCOMB = tlist<R,DArgs...> *--->* function_cell  <----- type with implementations
 //                                         |                                *
-//                                         |                                ^    *make_derived_combinations*
-//                                         |                                |    indices_to_types               //TODO: Make combinations deberia usar TID
+//                                         | *vbsign_to_dsign_combinations* ^
+//                    get_base_core_types  |               vbsign_to_dsign  |
 //                                         |                                |
 //                                         v                                *
-//                                   BCL = tlist<BCArgs...>   -------->    TID <--- DCL
-//                                                                    create_type_id
+//                                  BCL = tlist<BCArgs...>      Combination Derived Type
+//                                         |                      ^         *
+//                                         |  *make_derived_combinations*   ^
+//                                         |        ------------/           |
+//                         create_type_id  |       /  indices_to_types      |
+//                                         v      /                         *
+//                              DCL ----> TID    ------------------>     Indices
+//                                                 *make_indices*
 
 /**
 *
@@ -1205,17 +1230,26 @@ struct create_table_omm : create_table_omm_aux<F,BS,tlist_to_collection_t<DSComb
 template<typename F, typename ftype, typename DCL>
 struct table_omm{
 
-    using VBS = ftype_to_sign_t<ftype>;
-    using BCL = get_base_core_types_t<VBS>;
-    using BS  = vbsign_to_bsign_t<VBS>;
-    using TID = create_type_id_t<BCL,DCL>;
-    using Comb = make_combinations_t<>
+    using VBS                   = ftype_to_sign_t<ftype>;
+    using BCL                   = get_base_core_types_t<VBS>;
+    using BS                    = vbsign_to_bsign_t<VBS>;
+    using TID                   = create_type_id_t<BCL,DCL>;
+    using IND                   = make_indices_t<TID>;
+    using DCOMB                 = make_derived_combinations_t<TID,IND>;
+    using DSCOMB                = vbsign_to_dsign_combinations_t<VBS,DCOMB>;
+    static constexpr auto table = create_table_omm_v<BS,DSCOMB>;
 
     template<typename... AS>
     static auto call(AS&&... as){
-        return generate_table<F,T,DS...>::value[get_index<T,DS...>::call(std::forward<AS>(as)...)](std::forward<AS>(as)...);
+        return table[get_index<TID,BS>::call(std::forward<AS>(as)...)](std::forward<AS>(as)...);
     }
 };
+
+
+// Interfaz
+
+template<typename... DS>
+using WithTypes = tlist_t<DS...>;
 
 
 #endif // OMM_H_INCLUDED
