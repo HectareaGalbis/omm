@@ -89,6 +89,31 @@ static constexpr int mult_v = mult<TS...>::value;
 //---------------------------------------------------------------------------------
 
 /**
+*   Tipo que representa una coleccion de tipos
+*/
+template<typename... S>
+struct collection{
+    using type = collection<S...>;
+};
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Ejecuta una metafuncion usando como argumentos los tipos de una coleccion
+*/
+template<template<typename...> typename P, typename C>
+struct apply_collection{};
+
+template<template<typename...> typename P, typename... S>
+struct apply_collection<P,collection<S...>> : P<S...>{};
+
+template<template<typename...> typename P, typename C>
+using apply_collection_t = typename apply_collection<P,C>::type;
+
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+
+/**
 *   Tipo que representa una lista vacia
 */
 struct nil{
@@ -118,6 +143,37 @@ struct tlist<T,TS...> : cons<T,tlist<TS...>::type>{};
 
 template<typename... TS>
 using tlist_t = tlist<TS...>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma una coleccion en una lista
+*/
+template<typename C>
+struct collection_to_tlist{};
+
+template<typename... S>
+struct collection_to_tlist<collection<S...>> : tlist<S...>{};
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma una lista en una coleccion
+*/
+template<typename L, typename C>
+struct tlist_to_collection_aux{};
+
+template<typename C>
+struct tlist_to_collection_aux<nil,C> : C{};
+
+template<typename T, typename R, typename... S>
+struct tlist_to_collection_aux<cons<T,R>,collection<S...>> : tlist_to_collection_aux<R,collection<S...,T>>{};
+
+template<typename T>
+struct tlist_to_collection : tlist_to_collection_aux<T,collection<>>{};
+
+template<typename T>
+using tlist_to_collection_t = typename tlist_to_collection<T>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -360,29 +416,17 @@ using remove_if_not_t = typename remove_if_not<P,L>::type;
 /**
 *   Ejecuta una metafuncion usando como argumentos los que se pasen, ademas de usar los elementos de la lista situada al final.
 */
-template<template<typename...> typename P, typename L, typename... S>
-struct apply_list{};
-
-template<template<typename...> typename P, typename... S>
-struct apply_list<P,nil,S...> : P<S...>{};
-
-template<template<typename...> typename P, typename T, typename R, typename... S>
-struct apply_list<P,cons<T,R>,S...> : apply_list<P,R,S...,T>{};
-
 template<typename... T>
-struct apply_collect : nil{};
+struct apply_aux : nil{};
 
 template<typename T, typename... TS>
-struct apply_collect<T,TS...> : T{};
+struct apply_aux<T,TS...> : T{};
 
 template<typename T, typename S, typename... TS>
-struct apply_collect<T,S,TS...> : cons<T,apply_collect<S,TS...>::type>{};
-
-template<typename... T>
-using apply_collect_t = typename apply_collect<T...>::type;
+struct apply_aux<T,S,TS...> : cons<T,apply_aux<S,TS...>::type>{};
 
 template<template<typename...> typename P, typename... S>
-struct apply : apply_list<P,apply_collect_t<S...>>{};
+struct apply : apply_collection<P,tlist_to_collection_t<typename apply_aux<S...>::type>>{};
 
 template<template<typename...> typename P, typename... S>
 using apply_t = typename apply<P,S...>::type;
@@ -578,21 +622,6 @@ using slice_type_t = typename slice_type<N,S>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Comprueba si un tipo de dato es virtual.
-*   Debe ser una referencia o un puntero a un tipo polimorfico (que contiene algun metodo virtual).
-*/
-template<typename T>
-struct is_virtual : or<std::is_polymorphic_t<std::remove_pointer_t<T>>,std::is_polymorphic_t<std::remove_reference_t<T>>>{};
-
-template<typename T>
-using is_virtual_t = is_virtual_valid<T>::type;
-
-template<typename T>
-static constexpr bool is_virtual_v = is_virtual_valid<T>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
 *   Contenedor de un tipo virtual usado para la plantilla de la tabla omm (method_template).
 *   El tipo T debe verificar is_virtual_valid.
 */
@@ -639,19 +668,13 @@ using open_virtual_type_if_virtual_t = typename open_virtual_type_if_virtual<T>:
 //---------------------------------------------------------------------------------
 
 /**
-*   Interfaz para el usuario.
-*   El tipo usado debe ser un tipo virtual, es decir, un puntero o una referencia a un tipo polimorfico (que tenga al menos un metodo virtual).
-*/
-template<typename T>
-using Virtual = std::enable_if_t<is_virtual_v<T>,virtual_type<T>>;
-
-//---------------------------------------------------------------------------------
-
-/**
 *   Traslada virtual_type, punteros, referencias y cualificadores a otro tipo.
 */
 template<typename VT, typename S>
-struct slice_virtual_type : virtual_type<slyce_type_t<open_virtual_type_t<VT>,S>>{};
+struct slice_virtual_type : virtual_type<slice_type_t<open_virtual_type_t<VT>,S>>{};
+
+template<typename VT, typename S>
+using slice_virtual_type_t = typename slice_virtual_type_t<VT,S>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -660,6 +683,32 @@ struct slice_virtual_type : virtual_type<slyce_type_t<open_virtual_type_t<VT>,S>
 */
 template<typename B, typename D>
 struct filter_derived_types_of : remove_if_not<is_base_of_c<B>::template type,D>{};
+
+template<typename B, typename D>
+using filter_derived_types_of_t = typename filter_derived_types_of<B,D>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Comprueba si un tipo de dato es un puntero o una referencia a un tipo polimorfico (que contiene al menos un metodo virtual).
+*/
+template<typename T>
+struct is_polymorphic_pr : or<std::is_polymorphic_t<std::remove_pointer_t<T>>,std::is_polymorphic_t<std::remove_reference_t<T>>>{};
+
+template<typename T>
+using is_polymorphic_pr_t = typename is_polymorphic_pr<T>::type;
+
+template<typename T>
+static constexpr bool is_polymorphic_pr_v = is_virtual_valid<T>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Interfaz para el usuario.
+*   El tipo usado debe ser un tipo virtual, es decir, un puntero o una referencia a un tipo polimorfico (que tenga al menos un metodo virtual).
+*/
+template<typename T>
+using Virtual = std::enable_if_t<is_polymorphic_pr_v<T>,virtual_type<T>>;
 
 
 //---------------------------------------------------------------------------------
@@ -698,25 +747,25 @@ using nth_derived_t = typename nth_derived<BA>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Busca el tipo que se corresponde con un type_info y devuelve su posicion
+*   Recibe un type_info de algun objeto y devuelve el indice que ocupa su tipo en un
+*   base_of_many.
 */
-template<typename BA>
-struct search_index_base{
-    static int call(const std::type_info& info){
+static int position_derived_runtime_aux(const std::type_info& info){
+    return 0;
+}
+
+template<typename D, typename S>
+static int position_derived_runtime_aux<cons<D,S>>(const std::type_info& info){
+    if (info == typeid(D))
         return 0;
-    }
-};
+    else
+        return 1+position_derived_runtime_aux<S>(info);
+}
 
-
-template<typename B, typename D>
-struct search_index_base<cons<B,D>>{
-    static int call(const std::type_info& info){
-        if (info == typeid(car_t<D>))
-            return 0;
-        else
-            return 1+search_index_base<cons<B,cdr_t<D>>>::call(info);
-    }
-};
+template<typename BM>
+static int call(const std::type_info& info){
+    return position_derived_runtime_aux<cdr_t<BM>>::call(info);
+}
 
 
 //---------------------------------------------------------------------------------
@@ -747,7 +796,7 @@ struct ftype_to_sign<R(AS...)> : tlist<R,AS...>{};
 //---------------------------------------------------------------------------------
 
 /**
-*   Transforma un virtual signature en un template
+*   Transforma un virtual signature en un signature
 */
 template<typename VT>
 struct vsign_to_sign : mapcar<open_virtual_type_if_virtual,VT>{};
@@ -757,82 +806,110 @@ using vsign_to_sign_t = typename vsign_to_sign<VT>::type;
 
 //---------------------------------------------------------------------------------
 
+/**
+*   Transforma un virtual base signature en un virtual derived signature sustituyendo cada
+*   tipo virtual base por un tipo derivado en la lista D.
+*/
+template<typename VBS, typename D>
+struct vbsign_to_dsign{};
+
+template<typename VBS>
+struct vbsign_to_dsign<VBS,nil> : VBS{};
+
+template<typename T, typename S, typename D>
+struct vbsign_to_dsign<cons<virtual_type<T>,S>,D> : cons<slice_type_t<T,car_t<D>>,typename vbsign_to_dsign<S,cdr_t<D>>::type>{};
+
+template<typename T, typename S, typename D>
+struct vbsign_to_dsign<cons<T,S>,D> : cons<T,vbsign_to_vsign<S,D>>{};
+
+template<typename VBS, typename D>
+using vbsign_to_dsign_t = typename vbsign_to_dsign<VBS,D>::type;
+
+//---------------------------------------------------------------------------------
 
 /**
-*   Transforma un virtual base signature en un virtual derived signature
+*   Retorna el tipo de una funcion a partir de una coleccion
 */
-template<typename VBS, typename D>   // TODO : Hacer unzip
-struct vbsign_to_vdsign : zip_t<VT>{
-    using type = virtual_method_template<typename M::type_ret,typename slice_virtual_types<typename M::type_args,D>::type>;
+template<typename C>
+struct collection_to_function_type{};
+
+template<typename R, typename... AS>
+struct collection_to_function_type<collection<R,AS...>>{
+    using type = R(AS...);
 };
 
-//
-///**
-//*   Cambia los tipos virtuales de un virtual_method_template por los tipos derivados de D y los extrae
-//*/
-//template<Virtual_method_template M, Type_list D>
-//struct extract_slice_method_virtual_types{
-//    using type = method_template<typename M::type_ret,typename extract_slice_virtual_types<typename M::type_args,D>::type>;
-//};
-//
-//---------------------------------------------------------------------------------
-//------------------------------- Method template ---------------------------------
-//---------------------------------------------------------------------------------
-
-/**
-*   Un template es una lista cuyo primer elemento es el tipo de retorno de una funcion
-*   y el resto de elementos son los tipos de los argumentos sin incluir ningun virtual_type.
-*/
+template<typename C>
+using collection_to_function_type_t = typename collection_to_function_type<C>::type;
 
 //---------------------------------------------------------------------------------
 
 /**
-*   Retorna el tipo de una funcion a partir de un template
+*   Retorna el tipo de una funcion a partir de una signature
 */
-template<typename R, typename... A>
-struct collection_to_function_type{
-    using type = R(A...);
-};
+template<typename L>
+struct signature_to_function_type : collection_to_function_type<tlist_to_collection_t<L>>{};
 
 template<typename L>
-struct template_to_function_type{
-    using type = apply_t<collection_to_function_type,L>;
-};
-
-template<typename L>
-using template_to_function_type_t = typename template_to_function_type<L>::type;
+using signature_to_function_type_t = typename signature_to_function_type<L>::type;
 
 //---------------------------------------------------------------------------------
-//
-///**
-//*   Comprueba si es posible llamar a una funcion con ciertos argumentos
-//*/
-//template<typename F, typename... NS>
-//concept has_valid_implementation = requires (NS... args){
-//    F::call(args...);
-//};
-//
-///**
-//*   Genera un puntero a una funcion que llama al metodo correspondiente tras realizar un casting
-//*/
-//template<Method_template O, Method_template N, typename F>
-//struct make_function_cell;
-//
-//template<typename R, typename... OS, typename... NS, typename F>
-//requires has_valid_implementation<F,NS...>
-//struct make_function_cell<method_template<R,type_list<OS...>>,method_template<R,type_list<NS...>>,F>{
-//    static R value(OS... args){
-//        return F::call(static_cast<NS>(args)...);
-//    }
-//};
-//
-//template<typename R, typename... OS, typename... NS, typename F>
-//requires (!has_valid_implementation<F,NS...>)
-//struct make_function_cell<method_template<R,type_list<OS...>>,method_template<R,type_list<NS...>>,F>{
-//    static constexpr std::nullptr_t value = nullptr;
-//};
-//
 
+/**
+*   Comprueba que el struct con las implementaciones tenga alguna valida para la signatura CD pasada
+*   mediante una coleccion.
+*/
+template<typename T>
+struct always_true : std::true_type{};
+
+template<typename T, typename... Bargs>
+struct check_implementation{
+
+    static std::false_type check(Bargs... bargs){
+        return std::false_type();
+    }
+
+    template<typename... Dargs>
+    static auto check(Dargs... dargs) -> always_true<decltype(T::implementation(dargs...))>::type{
+        return std::true_type();
+    }
+
+};
+
+template<typename T, typename CB, typename CD>
+struct has_implementation{};
+
+template<typename T, typename R, typename... Bargs, typename... Dargs>
+struct has_implementation<T,collection<R,Bargs...>,collection<R,Dargs...>> : decltype(check_implementation<T,Bargs...>::check(std::declval<Dargs>()...)){};
+
+template<typename T, typename CB, typename CD>
+using has_implementation_t = typename has_implementation<T,CB,CD>::type;
+
+template<typename T, typename CB, typename CD>
+static constexpr bool has_implementation_v = has_implementation<T,CB,CD>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Genera un puntero a una funcion que llama al metodo correspondiente tras realizar un casting.
+*   La signatura de la funcion value y la del casting son pasados mediante una coleccion
+*/
+template<typename HasImplementation, typename F, typename BC, typename DC>
+struct make_function_cell_aux{
+    static constexpr std::nullptr_t value = nullptr;
+};
+
+template<typename F, typename R, typename... Bargs, typename... Dargs>
+struct make_function_cell_aux<std::true_type,F,collection<R,Bargs...>,collection<R,Dargs...>>{
+    static R value(Bargs... args){
+        return F::call(static_cast<Dargs>(args)...);
+    }
+};
+
+template<typename F, typename BC, typename DC>
+struct make_function_cell : make_function_cell_aux<has_implementation_t<F,BC,DC>,BC,DC>{};
+
+template<typename F, typename BC, typename DC>
+auto make_function_cell_v = make_function_cell<F,BC,DC>::value;
 
 //---------------------------------------------------------------------------------
 //-------------------------------- Combinations -----------------------------------
@@ -908,7 +985,7 @@ using make_combinations_t = typename make_combinations<M>::type;
 /**
 *   Retorna una lista de tipos cuyos indices en el type_id son los que se pasan como parametro
 */
-template<typename Tid, typename L>      // usar zip + apply_c
+template<typename Tid, typename L>
 struct indices_to_types : mapcar<apply_c<nth_derived>::template type,zip_t<Tid,L>>{};
 
 template<typename Tid, typename L>
