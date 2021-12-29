@@ -719,6 +719,12 @@ struct create_base_of_many : cons<B,remove_if_not<is_base_of_c<B>::template type
 template<typename B, typename DL>
 using create_base_of_many_t = typename create_base_of_many<B,DL>::type;
 
+template<typename DL>
+struct create_base_of_many_c_inv{
+    template<typename B>
+    using type = create_base_of_many_t<B,DL>;
+};
+
 //---------------------------------------------------------------------------------
 
 /**
@@ -819,6 +825,26 @@ struct ftype_to_sign<R(AS...)> : tlist<R,AS...>{};
 //---------------------------------------------------------------------------------
 
 /**
+*   Devuelve a partir de una Virtual Base Signature los tipo de datos virtuales en su forma core.
+*/
+template<typename VBS>
+struct get_base_core_types{};
+
+template<>
+struct get_base_core_types<nil> : nil{};
+
+template<typename B, typename BS>
+struct get_base_core_types<cons<B,BS>> : get_base_core_types<BS>{};
+
+template<typename B, typename BS>
+struct get_base_core_types<cons<virtual_type<B>,BS>> : cons<core_type_t<B>,typename get_base_core_types<BS>::type>{};
+
+template<typename VBS>
+using get_base_core_types_t = typename get_base_core_types<VBS>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
 *   Transforma un virtual signature en un signature
 */
 template<typename VT>
@@ -830,23 +856,62 @@ using vsign_to_sign_t = typename vsign_to_sign<VT>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Transforma un virtual base signature en un virtual derived signature sustituyendo cada
+*   Transforma un virtual base signature en un derived signature sustituyendo cada
 *   tipo virtual base por un tipo derivado en la lista D.
 */
-template<typename VBS, typename D>
+template<typename VBS, typename DL>
 struct vbsign_to_dsign{};
 
 template<typename VBS>
 struct vbsign_to_dsign<VBS,nil> : VBS{};
 
-template<typename T, typename S, typename D>
-struct vbsign_to_dsign<cons<virtual_type<T>,S>,D> : cons<slice_type_t<T,car_t<D>>,typename vbsign_to_dsign<S,cdr_t<D>>::type>{};
+template<typename T, typename S, typename DL>
+struct vbsign_to_dsign<cons<virtual_type<T>,S>,DL> : cons<slice_type_t<T,car_t<D>>,typename vbsign_to_dsign<S,cdr_t<D>>::type>{};
 
-template<typename T, typename S, typename D>
-struct vbsign_to_dsign<cons<T,S>,D> : cons<T,vbsign_to_vsign<S,D>>{};
+template<typename T, typename S, typename DL>
+struct vbsign_to_dsign<cons<T,S>,D> : cons<T,vbsign_to_dsign<S,DL>>{};
 
-template<typename VBS, typename D>
-using vbsign_to_dsign_t = typename vbsign_to_dsign<VBS,D>::type;
+template<typename VBS, typename DL>
+using vbsign_to_dsign_t = typename vbsign_to_dsign<VBS,DL>::type;
+
+template<typename VBS>
+struct vbsign_to_dsign_c{
+    template<typename DL>
+    using type = vbsign_to_dsign_t<VBS,DL>;
+};
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma un virtual base signature en un derived signature sustituyendo cada
+*   tipo virtual base por un tipo derivado en la lista D.
+*/
+template<typename VBS, typename DComb>
+struct vbsign_to_dsign_combinations : mapcar<vbsign_to_dsign_c<VBS>::template type,DComb>{};
+
+template<typename VBS, typename DComb>
+using vbsign_to_dsign_combinations_t = typename vbsign_to_dsign_combinations<VBS,DComb>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma un virtual base signature en un derived signature sustituyendo cada
+*   tipo virtual base por un tipo derivado en la lista D.
+*/
+template<typename VBS>
+struct vbsign_to_bsign{};
+
+template<>
+struct vbsign_to_bsign<nil> : nil{};
+
+template<typename B, typename BS>
+struct vbsign_to_bsign<cons<virtual_type<B>,BS>> : cons<B,typename vbsign_to_bsign<BS>::type>{};
+
+template<typename B, typename BS, typename DL>
+struct vbsign_to_bsign<cons<B,BS>,D> : cons<B,vbsign_to_bsign<S,DL>>{};
+
+template<typename VBS, typename DL>
+using vbsign_to_bsign_t = typename vbsign_to_bsign<VBS,DL>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -928,8 +993,9 @@ struct make_function_cell_aux<std::true_type,F,collection<R,Bargs...>,collection
     }
 };
 
-template<typename F, typename BC, typename DC>
-struct make_function_cell : make_function_cell_aux<has_implementation_t<F,BC,DC>,BC,DC>{};
+template<typename F, typename BS, typename DS>
+struct make_function_cell : make_function_cell_aux<has_implementation_t<F,tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>,
+                                                   tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>{};
 
 template<typename F, typename BC, typename DC>
 auto make_function_cell_v = make_function_cell<F,BC,DC>::value;
@@ -1008,19 +1074,10 @@ using make_combinations_t = typename make_combinations<M>::type;
 /**
 *   Genera un type_id a partir de un virtual base signature y una lista de tipos derivados.
 */
-template<typename VBS, typename D>
-struct create_type_id{};
+template<typename BCL, typename DL>
+struct create_type_id : mapcar<create_base_of_many_c_inv<DL>::template type,BCL>{};
 
-template<typename D>
-struct create_type_id<nil,D> : nil{};
-
-template<typename B, typename BS, typename D>
-struct create_type_id<cons<B,BS>,D> : create_type_id<BS,D>{};
-
-template<typename B, typename BS, typename D>
-struct create_type_id<cons<virtual_type<B>,BS>,D> : cons<create_base_of_many_t<core_type_t<B>,D>,create_type_id<BS,D>>{};
-
-template<typename VBS, typename D>
+template<typename BCL, typename DL>
 struct create_type_id_t = typename create_type_id<VBS,D>::type;
 
 //---------------------------------------------------------------------------------
@@ -1028,16 +1085,16 @@ struct create_type_id_t = typename create_type_id<VBS,D>::type;
 /**
 *   Retorna una lista de tipos cuyos indices en el type_id son los que se pasan como parametro
 */
-template<typename Tid, typename L>
-struct indices_to_types : mapcar<apply_c<nth_derived>::template type,zip_t<Tid,L>>{};
+template<typename Tid, typename KS>
+struct indices_to_types : mapcar<apply_c<nth>::template type,zip_t<mapcar_t<cdr,Tid>,KS>>{};
 
-template<typename Tid, typename L>
-using indices_to_types_t = typename indices_to_types<Tid,L>::type;
+template<typename Tid, typename KS>
+using indices_to_types_t = typename indices_to_types<Tid,KS>::type;
 
 template<typename Tid>
 struct indices_to_types_c{
-    template<typename L>
-    using type = indices_to_types_t<Tid,L>;
+    template<typename KS>
+    using type = indices_to_types_t<Tid,KS>;
 };
 
 //---------------------------------------------------------------------------------
@@ -1056,11 +1113,11 @@ using length_of_each_base_t = typename length_of_each_base<Tid>::type;
 /**
 *   Devuelve una lista con todas las posibles combinaciones de tipos derivados
 */
-template<typename Tid>
-struct make_derived_combinations : mapcar<indices_to_types_c<Tid>::template type,make_combinations_t<length_of_each_base_t<Tid>>>{};
+template<typename Tid, typename Comb>
+struct make_derived_combinations : mapcar<indices_to_types_c<Tid>::template type,Comb>{};
 
-template<typename Tid>
-using make_derived_combinations_t = typename make_derived_combinations<Tid>::type;
+template<typename Tid, typename Comb>
+using make_derived_combinations_t = typename make_derived_combinations<Tid,Comb>::type;
 
 
 //---------------------------------------------------------------------------------
@@ -1097,36 +1154,22 @@ static int get_index(AS... as){
     return get_index_aux<Tid,BS,AS...>::call(std::forward<AS>(as)...);
 }
 
-////---------------------------------------------------------------------------------
-////---------------------------------------------------------------------------------
-////------------------------------- Generate table ----------------------------------
-////---------------------------------------------------------------------------------
-////---------------------------------------------------------------------------------
-//
-//template<Type_list D, Virtual_method_template O, typename F>
-//struct generate_table_aux3;
-//
-//template<Type_list... DS, Virtual_method_template O, typename F>
-//struct generate_table_aux3<type_list<DS...>,O,F>{
-//    static constexpr std::add_pointer<typename method_template_to_function_type<typename create_method_template<O>::type>::type>::type value[] =
-//                    {make_function_cell<typename create_method_template<O>::type,typename extract_slice_method_virtual_types<O,DS>::type,F>::value...};
-//};
-//
-//template<Type_id C, Virtual_method_template O, typename F>
-//struct generate_table_aux2{
-//    static constexpr auto value = generate_table_aux3<typename make_derived_combinations<C>::type,O,F>::value;
-//};
-//
-//template<Virtual_method_template O, Type_list D, typename F>
-//struct generate_table_aux{
-//    static constexpr auto value = generate_table_aux2<typename create_type_id<typename get_virtual_core_types<typename O::type_args>::type,D>::type,O,F>::value;
-//
-//};
-//
-//template<typename F, typename T, typename... DS>
-//struct generate_table{
-//    static constexpr auto value = generate_table_aux<typename create_virtual_method_template<T>::type,typename create_type_list<DS...>::type,F>::value;
-//};
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+//------------------------------- Generate table ----------------------------------
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+
+template<typename F, typename BS, typename DSComb>
+struct create_table_omm_aux{};
+
+template<typename F, typename BS, typename... DS>
+struct create_table_omm_aux{
+    static constexpr auto value = {make_function_cell_v<F,BS,DS>...};
+};
+
+template<typename F, typename BS, typename DSComb>
+struct create_table_omm : create_table_omm_aux<F,BS,tlist_to_collection_t<DSComb>>{};
 
 
 //---------------------------------------------------------------------------------
@@ -1136,14 +1179,37 @@ static int get_index(AS... as){
 //---------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------
+//                              vbsign_to_bsign  -------------> BS = tlist<R,BArgs> ----------------
+//                                              |                                                   |
+//                                              |                                                   |
+//                                              |                               make_function_cell  |
+//                        ftype_to_sign         |                                                   v
+//funtion_type = R(VBArgs...) ---> VBS = tlist<R,VBArgs...> *--->* DS = tlist<R,DArgs...> *--->* function_cell  <----- type with implementations
+//                                                                          *
+//                                         | *vbsign_to_dsign_combinations* ^
+//                                         |               vbsign_to_dsign  |
+//                                         |                                |
+//                                         |                                *                                   *make_combinations*
+//                    get_base_core_types  |                      Combination Derived Type *<---* Combination Number *<----*
+//                                         |                                *
+//                                         |                                ^    *make_derived_combinations*
+//                                         |                                |    indices_to_types               //TODO: Make combinations deberia usar TID
+//                                         |                                |
+//                                         v                                *
+//                                   BCL = tlist<BCArgs...>   -------->    TID <--- DCL
+//                                                                    create_type_id
 
 /**
 *
 */
-template<typename F, typename VBS, typename DS>
+template<typename F, typename ftype, typename DCL>
 struct table_omm{
 
-    using TypeId = create_type_id_t<VBS,DS>; // Quizas haya que cambiarlo
+    using VBS = ftype_to_sign_t<ftype>;
+    using BCL = get_base_core_types_t<VBS>;
+    using BS  = vbsign_to_bsign_t<VBS>;
+    using TID = create_type_id_t<BCL,DCL>;
+    using Comb = make_combinations_t<>
 
     template<typename... AS>
     static auto call(AS&&... as){
