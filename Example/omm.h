@@ -622,7 +622,7 @@ using slice_type_t = typename slice_type<N,S>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Contenedor de un tipo virtual usado para la plantilla de la tabla omm (method_template).
+*   Contenedor de un tipo virtual usado para los tipos que participan en el multiple dispatch.
 *   El tipo T debe verificar is_virtual_valid.
 */
 template<typename T>
@@ -633,7 +633,7 @@ struct virtual_type{
 //---------------------------------------------------------------------------------
 
 /**
-*   Extrae el tipo dentro virtual_type
+*   Extrae el tipo dentro de virtual_type
 */
 template<typename T>
 struct open_virtual_type{};
@@ -679,17 +679,6 @@ using slice_virtual_type_t = typename slice_virtual_type_t<VT,S>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Elimina los elementos de la lista D que no sean tipos derivados de B.
-*/
-template<typename B, typename D>
-struct filter_derived_types_of : remove_if_not<is_base_of_c<B>::template type,D>{};
-
-template<typename B, typename D>
-using filter_derived_types_of_t = typename filter_derived_types_of<B,D>::type;
-
-//---------------------------------------------------------------------------------
-
-/**
 *   Comprueba si un tipo de dato es un puntero o una referencia a un tipo polimorfico (que contiene al menos un metodo virtual).
 */
 template<typename T>
@@ -722,6 +711,17 @@ using Virtual = std::enable_if_t<is_polymorphic_pr_v<T>,virtual_type<T>>;
 //---------------------------------------------------------------------------------
 
 /**
+*   Genera un base of many a partir de un tipo base y una lista de tipos cualquiera.
+*/
+template<typename B, typename DL>
+struct create_base_of_many : cons<B,remove_if_not<is_base_of_c<B>::template type,DL>>{};
+
+template<typename B, typename DL>
+using create_base_of_many_t = typename create_base_of_many<B,DL>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
 *   Retorna la cantidad de tipos derivados de un base_of_many
 */
 template<typename BA>
@@ -747,6 +747,29 @@ using nth_derived_t = typename nth_derived<BA>::type;
 //---------------------------------------------------------------------------------
 
 /**
+*   Dado un indice, devuelve el tipo derivado que ocupa dicha posicion
+*/
+template<typename DL, typename D, typename K>
+struct position_derived_aux{};
+
+template<typename T, typename TS, typename D, typename K>
+struct position_derived_aux<cons<T,TS>,D,K> : position_derived_aux<TS,D,add1_t<K>>{};
+
+template<typename TS, typename D, typename K>
+struct position_derived_aux<cons<D,TS>,D,K> : K{};
+
+template<typename BM, typename D>
+struct position_derived : position_derived_aux<cdr_t<BM>,D,zero>{};
+
+template<typename BM, typename D>
+using position_derived_t = typename position_derived<BM,D>::type;
+
+template<typename BM, typename D>
+static constexpr int position_derived_v = position_derived<BM,D>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
 *   Recibe un type_info de algun objeto y devuelve el indice que ocupa su tipo en un
 *   base_of_many.
 */
@@ -763,7 +786,7 @@ static int position_derived_runtime_aux<cons<D,S>>(const std::type_info& info){
 }
 
 template<typename BM>
-static int call(const std::type_info& info){
+static int position_derived_runtime(const std::type_info& info){
     return position_derived_runtime_aux<cdr_t<BM>>::call(info);
 }
 
@@ -983,6 +1006,26 @@ using make_combinations_t = typename make_combinations<M>::type;
 //---------------------------------------------------------------------------------
 
 /**
+*   Genera un type_id a partir de un virtual base signature y una lista de tipos derivados.
+*/
+template<typename VBS, typename D>
+struct create_type_id{};
+
+template<typename D>
+struct create_type_id<nil,D> : nil{};
+
+template<typename B, typename BS, typename D>
+struct create_type_id<cons<B,BS>,D> : create_type_id<BS,D>{};
+
+template<typename B, typename BS, typename D>
+struct create_type_id<cons<virtual_type<B>,BS>,D> : cons<create_base_of_many_t<core_type_t<B>,D>,create_type_id<BS,D>>{};
+
+template<typename VBS, typename D>
+struct create_type_id_t = typename create_type_id<VBS,D>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
 *   Retorna una lista de tipos cuyos indices en el type_id son los que se pasan como parametro
 */
 template<typename Tid, typename L>
@@ -1020,97 +1063,40 @@ template<typename Tid>
 using make_derived_combinations_t = typename make_derived_combinations<Tid>::type;
 
 
-////---------------------------------------------------------------------------------
-//
-//template<Type_id C>
-//struct get_index_multiplier_aux{
-//    static constexpr int value = 1;
-//};
-//
-//template<Base_of_any B, Base_of_any... BS>
-//struct get_index_multiplier_aux<type_id<B,BS...>>{
-//    static constexpr int value = length_of_base<B>::value*get_index_multiplier_aux<type_id<BS...>>::value;
-//};
-//
-//template<Type_id C>
-//struct get_index_multiplier;
-//
-//template<Base_of_any B, Base_of_any... BS>
-//struct get_index_multiplier<type_id<B,BS...>>{
-//    static constexpr int value = get_index_multiplier_aux<type_id<BS...>>::value;
-//};
-//
-////---------------------------------------------------------------------------------
-////---------------------------------------------------------------------------------
-////--------------------------------- Get index -------------------------------------
-////---------------------------------------------------------------------------------
-////---------------------------------------------------------------------------------
-//
-//template<Type_id C, typename M>
-//struct get_index_aux_3;
-//
-//template<typename M>
-//struct get_index_aux_3<type_id<>,M>{
-//    template<typename... AS>
-//    static int call(int curr_ind, AS&&... as){
-//        return curr_ind;
-//    }
-//};
-//
-//template<Base_of_any B, Base_of_any... BS, typename R,typename T, typename... TS>
-//requires (!is_virtual_type<T>::value)
-//struct get_index_aux_3<type_id<B,BS...>,virtual_method_template<R,type_list<T,TS...>>>{
-//    template<typename A, typename... AS>
-//    static int call(int curr_ind, A&& a, AS&&... as){
-//        return get_index_aux_3<type_id<B,BS...>,virtual_method_template<R,type_list<TS...>>>::call(curr_ind,std::forward<AS>(as)...);
-//    }
-//};
-//
-//template<Base_of_any B, Base_of_any... BS, typename R, Virtual_type T, typename... TS>
-//requires (std::is_reference<typename T::type>::value)
-//struct get_index_aux_3<type_id<B,BS...>,virtual_method_template<R,type_list<T,TS...>>>{
-//    template<typename A, typename... AS>
-//    static int call(int curr_ind, A&& a, AS&&... as){
-//        return get_index_aux_3<type_id<BS...>,virtual_method_template<R,type_list<TS...>>>::call(curr_ind+search_index_base<B>::call(typeid(a))*get_index_multiplier<type_id<B,BS...>>::value,std::forward<AS>(as)...);
-//    }
-//};
-//
-//template<Base_of_any B, Base_of_any... BS, typename R,Virtual_type T, typename... TS>
-//requires (std::is_pointer<typename T::type>::value)
-//struct get_index_aux_3<type_id<B,BS...>,virtual_method_template<R,type_list<T,TS...>>>{
-//    template<typename A, typename... AS>
-//    static int call(int curr_ind, A&& a, AS&&... as){
-//        return get_index_aux_3<type_id<BS...>,virtual_method_template<R,type_list<TS...>>>::call(curr_ind+search_index_base<B>::call(typeid(*a))*get_index_multiplier<type_id<B,BS...>>::value,std::forward<AS>(as)...);
-//    }
-//};
-//
-//template<Type_id C, Virtual_method_template M>
-//struct get_index_aux_2;
-//
-//template<Base_of_any... BS, Virtual_method_template M>
-//struct get_index_aux_2<type_id<BS...>,M>{
-//    template<typename A, typename... AS>
-//    static int call(A&& a, AS&&... as){
-//        return get_index_aux_3<type_id<BS...>,M>::call(0,std::forward<A>(a),std::forward<AS>(as)...);
-//    }
-//};
-//
-//template<Type_list D, Virtual_method_template M>
-//struct get_index_aux{
-//    template<typename A, typename... AS>
-//    static int call(A&& a, AS&&... as){
-//        return get_index_aux_2<typename create_type_id<typename get_virtual_core_types<typename M::type_args>::type,D>::type,M>::call(std::forward<A>(a),std::forward<AS>(as)...);
-//    }
-//};
-//
-//template<typename T, typename... DS>
-//struct get_index{
-//    template<typename A, typename... AS>
-//    static int call(A&& a, AS&&... as){
-//        return get_index_aux<typename create_type_list<DS...>::type,typename create_virtual_method_template<T>::type>::call(std::forward<A>(a),std::forward<AS>(as)...);
-//    }
-//};
-//
+//---------------------------------------------------------------------------------
+
+/**
+*   Devuelve el indice del puntero a la funcion que se debe llamar a partir de los argumentos
+*/
+template<typename Tid, typename BS, typename... AS>
+struct get_index_aux : one{
+    static int call(AS... as){
+        return 0;
+    }
+};
+
+template<typename Tid, typename B, typename BS, typename A, typename... AS>
+struct get_index_aux<Tid,cons<B,BS>,A,AS...>{
+    static constexpr int current_multiplier = get_index_aux<Tid,BS,AS...>::current_multiplier
+    static int call(A a, AS... as){
+        return get_index_aux<Tid,BS,AS...>::call(std::forward<AS>(as)...);
+    }
+};
+
+template<typename T, typename TS, typename B, typename BS, typename A, typename... AS>
+struct get_index_aux<cons<T,TS>,cons<virtual_type<B>,BS>,A,AS...>{
+    static constexpr int current_multiplier = get_index_aux<TS,BS,AS...>::current_multiplier*length_of_derived_v<T>;
+    static int call(A a, AS... as){
+        return get_index_aux<TS,BS,AS...>::call(std::forward<AS>(as)...)
+               + position_derived_runtime<T>(typeid(std::forward<A>(a)))*get_index_aux<TS,BS,AS...>::current_multiplier;
+    }
+};
+
+template<typename Tid, typename BS, typename... AS>
+static int get_index(AS... as){
+    return get_index_aux<Tid,BS,AS...>::call(std::forward<AS>(as)...);
+}
+
 ////---------------------------------------------------------------------------------
 ////---------------------------------------------------------------------------------
 ////------------------------------- Generate table ----------------------------------
@@ -1141,23 +1127,29 @@ using make_derived_combinations_t = typename make_derived_combinations<Tid>::typ
 //struct generate_table{
 //    static constexpr auto value = generate_table_aux<typename create_virtual_method_template<T>::type,typename create_type_list<DS...>::type,F>::value;
 //};
-//
-//
-////---------------------------------------------------------------------------------
-////---------------------------------------------------------------------------------
-////---------------------------------------------------------------------------------
-////--------------------------------- Table omm -------------------------------------
-////---------------------------------------------------------------------------------
-////---------------------------------------------------------------------------------
-////---------------------------------------------------------------------------------
-//
-//template<typename F, typename T, typename... DS>
-//struct table_omm{
-//    template<typename... AS>
-//    static auto call(AS&&... as){
-//        return generate_table<F,T,DS...>::value[get_index<T,DS...>::call(std::forward<AS>(as)...)](std::forward<AS>(as)...);
-//    }
-//};
+
+
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+//--------------------------------- Table omm -------------------------------------
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+
+/**
+*
+*/
+template<typename F, typename VBS, typename DS>
+struct table_omm{
+
+    using TypeId = create_type_id_t<VBS,DS>; // Quizas haya que cambiarlo
+
+    template<typename... AS>
+    static auto call(AS&&... as){
+        return generate_table<F,T,DS...>::value[get_index<T,DS...>::call(std::forward<AS>(as)...)](std::forward<AS>(as)...);
+    }
+};
 
 
 #endif // OMM_H_INCLUDED
