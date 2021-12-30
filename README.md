@@ -45,7 +45,6 @@ No hay. Así que hay que usar librerías alternativas.
 ## ¿yomm2 ó omm?
 Las principales diferencias son las siguientes:
 * yomm2 lleva mucho tiempo actualizándose y mejorándose, mientras que omm acaba de salir del horno. Si vas a usar este tipo de soluciones en un programa donde los fallos pueden ser fatales usa yomm2.
-* yomm2 usa C++17. omm usa C++20.
 * yomm2 depende de 3 librerías de Boost. omm no depende de nada.
 * yomm2 crea sus tablas de punteros a funciones en tiempo de ejecución. omm las crea en tiempo de compilación.
 * yomm2 usa una forma natural de implementar los métodos, como en el ejemplo de las matrices de arriba. omm es feillo y artificioso.
