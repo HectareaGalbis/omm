@@ -2,31 +2,574 @@
 #define OMM_H_INCLUDED
 
 #include <typeinfo>
+#include <type_traits>
 #include <algorithm>
+
+//---------------------------------------------------------------------------------
+//---------------------------------- Data types -----------------------------------
+//---------------------------------------------------------------------------------
+
+/**
+*   Tipo de dato que representa a un entero
+*/
+template<int k>
+using int_constant = std::integral_constant<int,k>;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Los numeros 0 y 1
+*/
+using zero = int_constant<0>;
+using one = int_constant<1>;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Realiza la suma de varios numeros
+*/
+template<typename... TS>
+struct add : zero{};
+
+template<typename T, typename... TS>
+struct add<T,TS...> : int_constant<T::value+add<TS...>::value>{};
+
+template<typename... TS>
+using add_t = typename add<TS...>::type;
+
+template<typename... TS>
+static constexpr int add_v = add<TS...>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Aumenta en 1 el valor de un entero
+*/
+template<typename T>
+using add1 = add<one,T>;
+
+template<typename T>
+using add1_t = typename add1<T>::type;
+
+template<typename T>
+static constexpr int add1_v = add1<T>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Disminuye en 1 el valor de un entero
+*/
+template<typename T>
+using sub1 = add<int_constant<-1>,T>;
+
+template<typename T>
+using sub1_t = typename sub1<T>::type;
+
+template<typename T>
+static constexpr int sub1_v = sub1<T>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Multiplica dos enteros
+*/
+template<typename... TS>
+struct mult : one{};
+
+template<typename T, typename... TS>
+struct mult<T,TS...> : int_constant<T::value*mult<TS...>::value>{};
+
+template<typename... TS>
+using mult_t = typename mult<TS...>::type;
+
+template<typename... TS>
+static constexpr int mult_v = mult<TS...>::value;
+
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+
+/**
+*   Tipo que representa una coleccion de tipos
+*/
+template<typename... S>
+struct collection{
+    using type = collection<S...>;
+};
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Ejecuta una metafuncion usando como argumentos los tipos de una coleccion
+*/
+template<template<typename...> typename P, typename C>
+struct apply_collection{};
+
+template<template<typename...> typename P, typename... S>
+struct apply_collection<P,collection<S...>> : P<S...>{};
+
+template<template<typename...> typename P, typename C>
+using apply_collection_t = typename apply_collection<P,C>::type;
+
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+
+/**
+*   Tipo que representa una lista vacia
+*/
+struct nil{
+    using type = nil;
+};
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Tipo que representa una estructura cons
+*/
+template<typename T, typename S>
+struct cons{
+    using type = cons<T,S>;
+};
+
+template<typename T>
+struct cons_c{
+    template<typename S>
+    using type = cons<T,S>;
+};
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Funcion de ayuda para generar una lista de elementos
+*/
+template<typename... TS>
+struct tlist : nil{};
+
+template<typename T, typename... TS>
+struct tlist<T,TS...> : cons<T,typename tlist<TS...>::type>{};
+
+template<typename... TS>
+using tlist_t = typename tlist<TS...>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma una coleccion en una lista
+*/
+template<typename C>
+struct collection_to_tlist{};
+
+template<typename... S>
+struct collection_to_tlist<collection<S...>> : tlist<S...>{};
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma una lista en una coleccion
+*/
+template<typename L, typename C>
+struct tlist_to_collection_aux{};
+
+template<typename C>
+struct tlist_to_collection_aux<nil,C> : C{};
+
+template<typename T, typename R, typename... S>
+struct tlist_to_collection_aux<cons<T,R>,collection<S...>> : tlist_to_collection_aux<R,collection<S...,T>>{};
+
+template<typename T>
+struct tlist_to_collection : tlist_to_collection_aux<T,collection<>>{};
+
+template<typename T>
+using tlist_to_collection_t = typename tlist_to_collection<T>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Comprueba si el tipo es nil o no.
+*/
+template<typename T>
+struct null : std::false_type{};
+
+template<>
+struct null<nil> : std::true_type{};
+
+template<typename T>
+using null_t = typename null<T>::type;
+
+template<typename T>
+static constexpr bool null_v = null<T>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Devuelve el primer elemento de una lista
+*/
+template<typename L>
+struct car{};
+
+template<>
+struct car<nil> : nil{};
+
+template<typename T, typename S>
+struct car<cons<T,S>>{
+    using type = T;
+};
+
+template<typename L>
+using car_t = typename car<L>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Elimina el primer elemento de una lista
+*/
+template<typename L>
+struct cdr{};
+
+template<>
+struct cdr<nil> : nil{};
+
+template<typename T, typename S>
+struct cdr<cons<T,S>>{
+    using type = S;
+};
+
+template<typename L>
+using cdr_t = typename cdr<L>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Concatena dos listas
+*/
+template<typename... S>
+struct append : nil{};
+
+template<typename... S>
+struct append<nil,S...> : append<S...>{};
+
+template<typename T, typename R, typename... S>
+struct append<cons<T,R>,S...> : cons<T,typename append<R,S...>::type>{};
+
+template<typename L, typename S>
+using append_t = typename append<L,S>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Devuelve el numero de elementos de una lista
+*/
+template<typename L>
+struct length{};
+
+template<>
+struct length<nil> : zero{};
+
+template<typename T, typename S>
+struct length<cons<T,S>> : add1<typename length<S>::type>{};
+
+template<typename L>
+using length_t = typename length<L>::type;
+
+template<typename L>
+static constexpr int length_v = length<L>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Retorna true si encuentra un elemento presente en una lista
+*/
+template<typename T, typename L>
+struct member{};
+
+template<typename T>
+struct member<T,nil> : std::false_type{};
+
+template<typename T, typename R, typename S>
+struct member<T,cons<R,S>> : member<T,S>{};
+
+template<typename T, typename S>
+struct member<T,tlist<T,S>> : std::true_type{};
+
+template<typename T, typename L>
+using member_t = typename member<T,L>::type;
+
+template<typename T, typename L>
+static constexpr bool member_v = member<T,L>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Retorna el indice de un elemento en una type_list
+*/
+template<typename T, typename L, typename K>
+struct position_aux : position_aux<T,cdr_t<L>,add1_t<K>>{};
+
+template<typename T, typename S, typename K>
+struct position_aux<T,cons<T,S>,K> : K{};
+
+template<typename T, typename L>
+struct position : position_aux<T,L,zero>{};
+
+template<typename T, typename L>
+using position_t = typename position<T,L>::type;
+
+template<typename T, typename L>
+static constexpr int position_v = position<T,L>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Devuelve el primer elemento de una lista que cumple con una condicion
+*/
+template<template<typename> typename P, typename L>
+struct find_if{};
+
+template<typename Found, template<typename> typename P, typename T, typename L>
+struct found_if : find_if<P,L>{};
+
+template<template<typename> typename P, typename T, typename L>
+struct found_if<std::true_type,P,T,L>{
+    using type = T;
+};
+
+template<template<typename> typename P>
+struct find_if<P,nil> : nil{};
+
+template<template<typename> typename P, typename T, typename S>
+struct find_if<P,cons<T,S>> : found_if<typename P<T>::type,P,T,S>{};
+
+template<template<typename> typename P, typename L>
+using find_if_t = typename find_if<P,L>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Retorna el elemento que se encuentra en la posicion k-esima de una lista
+*/
+template<typename L, typename K>
+struct nth_aux : nth_aux<cdr_t<L>,sub1_t<K>>{};
+
+template<typename L>
+struct nth_aux<L,zero> : car<L>{};
+
+template<typename L, typename K>
+struct nth : nth_aux<L,K>{};
+
+template<typename L, typename K>
+using nth_t = typename nth<L,K>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Ejecuta una metafuncion sobre cada elemento de la lista
+*/
+template<template<typename> typename P, typename L>
+struct mapcar{};
+
+template<template<typename> typename P>
+struct mapcar<P,nil> : nil{};
+
+template<template<typename> typename P, typename T, typename S>
+struct mapcar<P,cons<T,S>> : cons<typename P<T>::type,typename mapcar<P,S>::type>{};
+
+template<template<typename> typename P, typename L>
+using mapcar_t = typename mapcar<P,L>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Realiza un fold de derecha a izquierda
+*/
+template<template<typename,typename> typename P, typename I, typename L>
+struct reduce_from_end : P<typename reduce_from_end<P,I,cdr_t<L>>::type,car_t<L>>{};
+
+template<template<typename,typename> typename P, typename I, typename T>
+struct reduce_from_end<P,I,cons<T,nil>> : P<I,T>{};
+
+template<template<typename,typename> typename P, typename I, typename L>
+using reduce_from_end_t = typename reduce_from_end<P,I,L>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Realiza un cons si B es true_type
+*/
+template<typename B, typename T, typename L>
+struct cons_if : cons<T,L>{};
+
+template<typename T, typename L>
+struct cons_if<std::false_type,T,L> : L{};
+
+template<typename B, typename T, typename L>
+using cons_if_t = typename cons_if<B,T,L>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Elimina los elementos de la lista que no cumplan la condicion
+*/
+template<template<typename> typename P, typename L>
+struct remove_if_not{};
+
+template<template<typename> typename P>
+struct remove_if_not<P,nil> : nil{};
+
+template<template<typename> typename P, typename T, typename S>
+struct remove_if_not<P,cons<T,S>> : cons_if<typename P<T>::type,T,typename remove_if_not<P,S>::type>{};
+
+template<template<typename> typename P, typename L>
+using remove_if_not_t = typename remove_if_not<P,L>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Ejecuta una metafuncion usando como argumentos los que se pasen, ademas de usar los elementos de la lista situada al final.
+*/
+template<typename... T>
+struct apply_aux : nil{};
+
+template<typename T, typename... TS>
+struct apply_aux<T,TS...> : T{};
+
+template<typename T, typename S, typename... TS>
+struct apply_aux<T,S,TS...> : cons<T,typename apply_aux<S,TS...>::type>{};
+
+template<template<typename...> typename P, typename... S>
+struct apply : apply_collection<P,tlist_to_collection_t<typename apply_aux<S...>::type>>{};
+
+template<template<typename...> typename P, typename... S>
+using apply_t = typename apply<P,S...>::type;
+
+template<template<typename...> typename P>
+struct apply_c{
+    template<typename... S>
+    using type = apply<P,S...>;
+};
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Retorna false_type si algun elemento de la lista es false_type
+*/
+template<typename... TS>
+struct and_type : std::true_type{};
+
+template<typename T, typename... TS>
+struct and_type<T,TS...> : and_type<TS...>{};
+
+template<typename... TS>
+struct and_type<std::false_type,TS...> : std::false_type{};
+
+template<typename... TS>
+using and_type_t = typename and_type<TS...>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Retorna false_type si algun elemento de la lista es false_type
+*/
+template<typename... TS>
+struct or_type : std::false_type{};
+
+template<typename... TS>
+struct or_type<std::true_type,TS...> : std::true_type{};
+
+template<typename... TS>
+struct or_type<std::false_type,TS...> : or_type<TS...>{};
+
+template<typename... TS>
+using or_type_t = typename or_type<TS...>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Retorna una lista donde cada elemento es una lista que contiene dos elementos que estaban
+*   en la misma posicion en las listas iniciales.
+*/
+template<typename L, typename S>
+struct zip : nil{};
+
+template<typename P, typename Q, typename R, typename S>
+struct zip<cons<P,Q>,cons<R,S>> : cons<tlist_t<P,R>,typename zip<Q,S>::type>{};
+
+template<typename L, typename S>
+using zip_t = typename zip<L,S>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Invierte el orden de los argumentos de una metafuncion
+*/
+template<template<typename,typename> typename P>
+struct flip{
+    template<typename T, typename S>
+    using type = typename P<S,T>::type;
+};
 
 //---------------------------------------------------------------------------------
 //----------------------------------- Auxiliar ------------------------------------
 //---------------------------------------------------------------------------------
 
 /**
+*   Algunas metafunciones de ayuda
+*/
+namespace std{
+    template<typename T>
+    using is_reference_t = typename is_reference<T>::type;
+
+    template<typename T>
+    using is_pointer_t = typename is_pointer<T>::type;
+
+    template<typename T>
+    using is_const_t = typename is_const<T>::type;
+
+    template<typename T>
+    using is_volatile_t = typename is_volatile<T>::type;
+
+    template<typename T>
+    using is_lvalue_reference_t = typename is_lvalue_reference<T>::type;
+
+    template<typename T>
+    using is_rvalue_reference_t = typename is_rvalue_reference<T>::type;
+
+    template<typename T>
+    using is_polymorphic_t = typename is_polymorphic<T>::type;
+
+    template<typename B, typename D>
+    using is_base_of_t = typename is_base_of<B,D>::type;
+
+    template<typename B>
+    struct is_base_of_c{
+        template<typename D>
+        using type = std::is_base_of_t<B,D>;
+    };
+}
+
+//---------------------------------------------------------------------------------
+
+/**
 *   Elimina referencias, punteros y cualificadores cv de un tipo de dato (int**const volatile*const** -> int)
 */
-template<typename T>
-struct core_type{
-    using type = typename std::remove_cv<T>::type;
+template<typename IsRef, typename IsPtr, typename T>
+struct core_type_aux{
+    using type = std::remove_cv_t<T>;
 };
 
-template<typename T>
-requires std::is_reference<T>::value
-struct core_type<T>{
-    using type = typename core_type<typename std::remove_cvref<T>::type>::type;
-};
+template<typename IsPtr, typename T>
+struct core_type_aux<std::true_type,IsPtr,T> : core_type_aux<std::is_reference_t<std::remove_cv_t<std::remove_reference_t<T>>>,
+                                                             std::is_pointer_t<std::remove_cv_t<std::remove_reference_t<T>>>,
+                                                             std::remove_cv_t<std::remove_reference_t<T>>>{};
 
 template<typename T>
-requires std::is_pointer<T>::value
-struct core_type<T>{
-    using type = typename core_type<typename std::remove_pointer<T>::type>::type;
-};
+struct core_type_aux<std::false_type,std::true_type,T> : core_type_aux<std::is_reference_t<std::remove_pointer_t<T>>,
+                                                                       std::is_pointer_t<std::remove_pointer_t<T>>,
+                                                                       std::remove_pointer_t<T>>{};
+
+template<typename T>
+struct core_type : core_type_aux<std::is_reference_t<T>,std::is_pointer_t<T>,T>{};
+
+template<typename T>
+using core_type_t = typename core_type<T>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -34,983 +577,546 @@ struct core_type<T>{
 *   Traslada referencias, punteros y cualificadores cv de un tipo origen a un destino
 *   ( [int*const**volatile*&, float] -> float*const**volatile*& )
 */
-template<typename N, typename S>
-struct slice_type{
+template<typename IsConst, typename IsVol, typename IsLval, typename IsRval, typename IsPtr, typename N, typename S>
+struct slice_type_aux{
     using type = S;
 };
 
-template<typename N, typename S>
-requires (std::is_const<N>::value && !std::is_volatile<N>::value)
-struct slice_type<N,S>{
-    using type = typename std::add_const<typename slice_type<typename std::remove_const<N>::type,S>::type>::type;
+template<typename IsVol, typename IsLval, typename IsRval, typename IsPtr, typename N, typename S>
+struct slice_type_aux<std::true_type,IsVol,IsLval,IsRval,IsPtr,N,S>{
+    using newN = std::remove_const_t<N>;
+    using type = std::add_const_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
+                                                          std::is_rvalue_reference_t<newN>,std::is_pointer_t<newN>,newN,S>::type>;
+};
+
+template<typename IsLval, typename IsRval, typename IsPtr, typename N, typename S>
+struct slice_type_aux<std::false_type,std::true_type,IsLval,IsRval,IsPtr,N,S>{
+    using newN = std::remove_volatile_t<N>;
+    using type = std::add_volatile_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
+                                                          std::is_rvalue_reference_t<newN>,std::is_pointer_t<newN>,newN,S>::type>;
+};
+
+template<typename IsRval, typename IsPtr, typename N, typename S>
+struct slice_type_aux<std::false_type,std::false_type,std::true_type,IsRval,IsPtr,N,S>{
+    using newN = std::remove_reference_t<N>;
+    using type = std::add_lvalue_reference_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
+                                                          std::is_rvalue_reference_t<newN>,std::is_pointer_t<newN>,newN,S>::type>;
+};
+
+template<typename IsPtr, typename N, typename S>
+struct slice_type_aux<std::false_type,std::false_type,std::false_type,std::true_type,IsPtr,N,S>{
+    using newN = std::remove_reference_t<N>;
+    using type = std::add_rvalue_reference_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
+                                                          std::is_rvalue_reference_t<newN>,std::is_pointer_t<newN>,newN,S>::type>;
 };
 
 template<typename N, typename S>
-requires (std::is_volatile<N>::value && !std::is_const<N>::value)
-struct slice_type<N,S>{
-    using type = typename std::add_volatile<typename slice_type<typename std::remove_volatile<N>::type,S>::type>::type;
+struct slice_type_aux<std::false_type,std::false_type,std::false_type,std::false_type,std::true_type,N,S>{
+    using newN = std::remove_pointer_t<N>;
+    using type = std::add_pointer_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
+                                                          std::is_rvalue_reference_t<newN>,std::is_pointer_t<newN>,newN,S>::type>;
 };
 
 template<typename N, typename S>
-requires (std::is_volatile<N>::value && std::is_const<N>::value)
-struct slice_type<N,S>{
-    using type = typename std::add_cv<typename slice_type<typename std::remove_cv<N>::type,S>::type>::type;
+struct slice_type{
+    using type = typename slice_type_aux<std::is_const_t<N>,std::is_volatile_t<N>,std::is_lvalue_reference_t<N>,
+                                         std::is_rvalue_reference_t<N>,std::is_pointer_t<N>,N,S>::type;
 };
 
 template<typename N, typename S>
-requires std::is_lvalue_reference<N>::value
-struct slice_type<N,S>{
-    using type = typename std::add_lvalue_reference<typename slice_type<typename std::remove_reference<N>::type,S>::type>::type;
-};
-
-template<typename N, typename S>
-requires std::is_rvalue_reference<N>::value
-struct slice_type<N,S>{
-    using type = typename std::add_rvalue_reference<typename slice_type<typename std::remove_reference<N>::type,S>::type>::type;
-};
-
-template<typename N, typename S>
-requires (std::is_pointer<N>::value && !std::is_volatile<N>::value && !std::is_const<N>::value)
-struct slice_type<N,S>{
-    using type = typename std::add_pointer<typename slice_type<typename std::remove_pointer<N>::type,S>::type>::type;
-};
+using slice_type_t = typename slice_type<N,S>::type;
 
 //---------------------------------------------------------------------------------
 //----------------------------------- Virtual -------------------------------------
 //---------------------------------------------------------------------------------
 
 /**
-*   Comprueba si un tipo de dato es valido como tipo virtual en la tabla
-*   Debe ser una referencia o un puntero a un tipo polimorfico (que contiene algun metodo virtual)
-*/
-template<typename T>
-struct is_virtual_valid{
-    static constexpr bool value = false;
-};
-
-template<typename T>
-requires std::is_pointer<T>::value
-struct is_virtual_valid<T>{
-    static constexpr bool value = std::is_polymorphic<typename std::remove_pointer<T>::type>::value;
-};
-
-template<typename T>
-requires std::is_reference<T>::value
-struct is_virtual_valid<T>{
-    static constexpr bool value = std::is_polymorphic<typename std::remove_reference<T>::type>::value;
-};
-
-template<typename T>
-concept Virtual_valid = is_virtual_valid<T>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Contenedor de un tipo virtual usado para la plantilla de la tabla omm (method_template).
+*   Contenedor de un tipo virtual usado para los tipos que participan en el multiple dispatch.
+*   El tipo T debe verificar is_virtual_valid.
 */
 template<typename T>
 struct virtual_type{
+    using type = virtual_type<T>;
+};
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Extrae el tipo dentro de virtual_type
+*/
+template<typename T>
+struct open_virtual_type{};
+
+template<typename T>
+struct open_virtual_type<virtual_type<T>>{
     using type = T;
 };
 
 template<typename T>
-struct is_virtual_type{
-    static constexpr bool value = false;
-};
+using open_virtual_type_t = typename open_virtual_type<T>::type;
 
+//---------------------------------------------------------------------------------
+
+/**
+*   Extrae el tipo de un virtual type si, efectivamente, es un virtual_type.
+*   En otro caso devuelve el tipo recibido.
+*/
 template<typename T>
-struct is_virtual_type<virtual_type<T>>{
-    static constexpr bool value = true;
-};
-
-template<typename T>
-concept Virtual_type = is_virtual_type<T>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Interfaz para el usuario
-*/
-template<Virtual_valid T>
-using Virtual = virtual_type<T>;
-
-
-/**
-*   Cambia el contenido de un tipo virtual
-*/
-template<Virtual_type T, typename D>
-struct slice_virtual_type;
-
-template<typename T, typename D>
-struct slice_virtual_type<virtual_type<T>,D>{
-    using type = virtual_type<typename slice_type<T,D>::type>;
-};
-
-
-//---------------------------------------------------------------------------------
-//--------------------------------- List type -------------------------------------
-//---------------------------------------------------------------------------------
-
-/**
-*   Lista de tipos
-*/
-template<typename... TS>
-struct type_list;
-
-
-/**
-*   Constructor del type_list
-*/
-template<typename... TS>
-struct create_type_list{
-    using type = type_list<TS...>;
-};
-
-
-/**
-*   Comprueba si un tipo es una type_list
-*/
-template<typename L>
-struct is_type_list{
-    static constexpr bool value = false;
-};
-
-template<typename... TS>
-struct is_type_list<type_list<TS...>>{
-    static constexpr bool value = true;
-};
-
-template<typename L>
-concept Type_list = is_type_list<L>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Comprueba si una type_list esta vacia
-*/
-template<Type_list L>
-struct is_null_type{
-    static constexpr bool value = true;
-};
-
-template<typename T, typename... TS>
-struct is_null_type<type_list<T,TS...>>{
-    static constexpr bool value = false;
-};
-
-
-/**
-*   Inserta un elemento al inicio de una lista
-*/
-template<typename T, Type_list L>
-struct cons_type;
-
-template<typename T, typename... TS>
-struct cons_type<T,type_list<TS...>>{
-    using type = type_list<T,TS...>;
-};
-
-
-/**
-*   Devuelve el primer tipo de una lista
-*/
-template<Type_list L>
-struct car_type;
-
-template<typename T, typename... TS>
-struct car_type<type_list<T,TS...>>{
+struct open_virtual_type_if_virtual{
     using type = T;
 };
 
-
-/**
-*   Elimina el primer elemento de una lista
-*/
-template<Type_list L>
-struct cdr_type;
-
-template<typename T, typename... TS>
-struct cdr_type<type_list<T,TS...>>{
-    using type = type_list<TS...>;
+template<typename T>
+struct open_virtual_type_if_virtual<virtual_type<T>>{
+    using type = T;
 };
-
-
-/**
-*   Devuelve el numero de elementos de una lista
-*/
-template<Type_list L>
-struct length_type{
-    static constexpr int value = 0;
-};
-
-template<typename T, typename... TS>
-struct length_type<type_list<T,TS...>>{
-    static constexpr int value = 1+length_type<type_list<TS...>>::value;
-};
-
-
-/**
-*   Retorna true si encuentra un tipo presente en una lista
-*/
-template<Type_list L, typename T>
-struct has_type{
-    static constexpr bool value = false;
-};
-
-template<typename R, typename... RS, typename T>
-struct has_type<type_list<R,RS...>,T>{
-    static constexpr bool value = has_type<type_list<RS...>,T>::value;
-};
-
-template<typename... RS, typename T>
-struct has_type<type_list<T,RS...>,T>{
-    static constexpr bool value = true;
-};
-
-
-/**
-*   Retorna el indice de un tipo en una type_list
-*/
-template<Type_list L, typename T, int k>
-struct member_at_type_aux{
-    static constexpr int value = member_at_type_aux<typename cdr_type<L>::type,T,k+1>::value;
-};
-
-template<typename... LS, typename T, int k>
-struct member_at_type_aux<type_list<T,LS...>,T,k>{
-    static constexpr int value = k;
-};
-
-template<Type_list L, typename T>
-requires has_type<L,T>::value
-struct member_at_type{
-    static constexpr int value = member_at_type_aux<L,T,0>::value;
-};
-
-
-/**
-*   Retorna el tipo que se encuentra en la posicion k-esima
-*/
-template<Type_list L, int k>
-requires (k<length_type<L>::value)
-struct ref_type{
-    using type = typename ref_type<typename cdr_type<L>::type,k-1>::type;
-};
-
-template<Type_list L>
-requires (!is_null_type<L>::value)
-struct ref_type<L,0>{
-    using type = typename car_type<L>::type;
-};
-
-
-template<template<typename> typename P, Type_list L>
-struct map_type;
-
-template<template<typename> typename P, typename... TS>
-struct map_type<P,type_list<TS...>>{
-    using type = type_list<typename P<TS>::type...>;
-};
-
-
-/**
-*   Retorna false si el predicado que se pasa retorna false para algun elemento de la lista
-*/
-template<template<typename> typename P, Type_list L>
-struct and_map_type{
-    static constexpr bool value = true;
-};
-
-template<template<typename> typename P, typename T, typename... TS>
-struct and_map_type<P,type_list<T,TS...>>{
-    static constexpr bool value = P<T>::value && and_map_type<P,type_list<TS...>>::value;
-};
-
-
-/**
-*   Retorna true si el predicado que se pasa retorna true para algun elemento de la lista
-*/
-template<template<typename> typename P, Type_list L>
-struct or_map_type{
-    static constexpr bool value = false;
-};
-
-template<template<typename> typename P, typename T, typename... TS>
-struct or_map_type<P,type_list<T,TS...>>{
-    static constexpr bool value = P<T>::value || or_map_type<P,type_list<TS...>>::value;
-};
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Crea una lista con los tipos que son derivados de un tipo base
-*/
-template<Type_list L, typename B, Type_list D>
-struct make_derived_list_aux;
-
-template<Type_list L, typename B>
-requires is_null_type<L>::value
-struct make_derived_list_aux<L,B,type_list<>>{
-    using type = L;
-};
-
-template<Type_list L, typename B, Type_list D>
-requires std::is_base_of<B,typename car_type<D>::type>::value
-struct make_derived_list_aux<L,B,D>{
-    using type = typename cons_type<typename car_type<D>::type,typename make_derived_list_aux<L,B,typename cdr_type<D>::type>::type>::type;
-};
-
-template<Type_list L, typename B, Type_list D>
-requires (!std::is_base_of<B,typename car_type<D>::type>::value)
-struct make_derived_list_aux<L,B,D>{
-    using type = typename make_derived_list_aux<L,B,typename cdr_type<D>::type>::type;
-};
-
-template<typename B, Type_list D>
-struct make_derived_list{
-    using type = typename make_derived_list_aux<type_list<>,B,D>::type;
-};
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Retorna una lista con los tipos virtuales extraidos en su forma core
-*/
-template<Type_list N, Type_list L>
-struct get_virtual_core_types_aux{
-    using type = N;
-};
-
-template<Type_list N, Virtual_type T, typename... TS>
-struct get_virtual_core_types_aux<N,type_list<T,TS...>>{
-    using type = typename cons_type<typename core_type<typename T::type>::type,typename get_virtual_core_types_aux<N,type_list<TS...>>::type>::type;
-};
-
-template<Type_list N, typename T, typename... TS>
-struct get_virtual_core_types_aux<N,type_list<T,TS...>>{
-    using type = typename get_virtual_core_types_aux<N,type_list<TS...>>::type;
-};
-
-template<Type_list L>
-struct get_virtual_core_types{
-    using type = typename get_virtual_core_types_aux<type_list<>,L>::type;
-};
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Cambia el contenido de los tipos virtuales por los tipos derivados
-*/
-template<Type_list L, Type_list D>
-struct slice_virtual_types{
-    using type = typename create_type_list<>::type;
-};
-
-template<typename L, typename... LS, Type_list D>
-struct slice_virtual_types<type_list<L,LS...>,D>{
-    using type = typename cons_type<L,typename slice_virtual_types<type_list<LS...>,D>::type>::type;
-};
-
-template<Virtual_type L, typename... LS, Type_list D>
-struct slice_virtual_types<type_list<L,LS...>,D>{
-    using type = typename cons_type<typename slice_virtual_type<L,typename car_type<D>::type>::type,typename slice_virtual_types<type_list<LS...>, typename cdr_type<D>::type>::type>::type;
-};
-
-
-/**
-*   Extrae el contenido de los tipos virtuales
-*/
-template<Type_list L>
-struct extract_virtual_types{
-    using type = typename create_type_list<>::type;
-};
-
-template<typename L, typename... LS>
-struct extract_virtual_types<type_list<L,LS...>>{
-    using type = typename cons_type<L,typename extract_virtual_types<type_list<LS...>>::type>::type;
-};
-
-template<Virtual_type L, typename... LS>
-struct extract_virtual_types<type_list<L,LS...>>{
-    using type = typename cons_type<typename L::type,typename extract_virtual_types<type_list<LS...>>::type>::type;
-};
-
-
-/**
-*   Cambia el contenido de los tipos virtuales por los tipos derivados y los extrae de sus contenedores virtuales
-*/
-template<Type_list L, Type_list D>
-struct extract_slice_virtual_types{
-    using type = typename create_type_list<>::type;
-};
-
-template<typename L, typename... LS, Type_list D>
-struct extract_slice_virtual_types<type_list<L,LS...>,D>{
-    using type = typename cons_type<L,typename extract_slice_virtual_types<type_list<LS...>,D>::type>::type;
-};
-
-template<Virtual_type L, typename... LS, Type_list D>
-struct extract_slice_virtual_types<type_list<L,LS...>,D>{
-    using type = typename cons_type<typename slice_type<typename L::type,typename car_type<D>::type>::type,typename extract_slice_virtual_types<type_list<LS...>, typename cdr_type<D>::type>::type>::type;
-};
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Retorna el tipo de una funcion a partir del tipo de retorno y el tipo de los argumentos
-*/
-template<typename R, Type_list L>
-struct type_list_to_function_type;
-
-template<typename R, typename... LS>
-struct type_list_to_function_type<R,type_list<LS...>>{
-    using type = R(LS...);
-};
-
-//---------------------------------------------------------------------------------
-//--------------------------------- Base of any -----------------------------------
-//---------------------------------------------------------------------------------
-
-/**
-*   Tipo de dato que guarda un tipo base y una lista de tipos derivados
-*/
-template<typename B, Type_list D>
-struct base_of_any{
-    using type_base = B;
-    using type_derived = D;
-};
-
-
-template<typename B, Type_list D>
-struct create_base_of_any{
-    using type = base_of_any<B,typename make_derived_list<B,D>::type>;
-};
-
 
 template<typename T>
-struct is_base_of_any{
-    static constexpr bool value = false;
-};
+using open_virtual_type_if_virtual_t = typename open_virtual_type_if_virtual<T>::type;
 
-template<typename B>
-struct is_base_of_B{
-    template<typename D>
-    struct type{
-        static constexpr bool value = std::is_base_of<B,D>::value;
-    };
-};
-
-template<typename B, Type_list D>
-requires and_map_type<is_base_of_B<B>::template type,D>::value
-struct is_base_of_any<base_of_any<B,D>>{
-    static constexpr bool value = true;
-};
-
-template<typename B>
-concept Base_of_any = is_base_of_any<B>::value;
-
+//---------------------------------------------------------------------------------
 
 /**
-*   Retorna la cantidad de tipos derivados de un base_of_any
+*   Traslada virtual_type, punteros, referencias y cualificadores a otro tipo.
 */
-template<Base_of_any B>
-struct length_of_base;
+template<typename VT, typename S>
+struct slice_virtual_type : virtual_type<slice_type_t<open_virtual_type_t<VT>,S>>{};
 
-template<typename B, Type_list D>
-struct length_of_base<base_of_any<B,D>>{
-    static constexpr int value = length_type<D>::value;
+template<typename VT, typename S>
+using slice_virtual_type_t = typename slice_virtual_type<VT,S>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Comprueba si un tipo de dato es un puntero o una referencia a un tipo polimorfico (que contiene al menos un metodo virtual).
+*/
+template<typename T>
+struct is_polymorphic_pr : or_type<std::is_polymorphic_t<std::remove_pointer_t<T>>,std::is_polymorphic_t<std::remove_reference_t<T>>>{};
+
+template<typename T>
+using is_polymorphic_pr_t = typename is_polymorphic_pr<T>::type;
+
+template<typename T>
+static constexpr bool is_polymorphic_pr_v = is_polymorphic_pr<T>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Interfaz para el usuario.
+*   El tipo usado debe ser un tipo virtual, es decir, un puntero o una referencia a un tipo polimorfico (que tenga al menos un metodo virtual).
+*/
+template<typename T>
+using Virtual = std::enable_if_t<is_polymorphic_pr_v<T>,virtual_type<T>>;
+
+
+//---------------------------------------------------------------------------------
+//--------------------------------- Base of many ----------------------------------
+//---------------------------------------------------------------------------------
+
+/**
+*   Un base_of_many es una lista cuyo primer elemento es una clase base del resto de elementos.
+*/
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Genera un base of many a partir de un tipo base y una lista de tipos cualquiera.
+*/
+template<typename B, typename DL>
+struct create_base_of_many : cons<B,remove_if_not_t<std::is_base_of_c<B>::template type,DL>>{};
+
+template<typename B, typename DL>
+using create_base_of_many_t = typename create_base_of_many<B,DL>::type;
+
+template<typename DL>
+struct create_base_of_many_c_inv{
+    template<typename B>
+    using type = create_base_of_many_t<B,DL>;
 };
 
 //---------------------------------------------------------------------------------
 
 /**
-*   Busca el tipo que se corresponde con un type_info y devuelve su posicion
+*   Retorna la cantidad de tipos derivados de un base_of_many
 */
-template<Base_of_any B>
-struct search_index_base{
+template<typename BA>
+using length_of_derived = length<cdr_t<BA>>;
+
+template<typename BA>
+using length_of_derived_t = typename length_of_derived<BA>::type;
+
+template<typename BA>
+static constexpr int length_of_derived_v = length_of_derived<BA>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Dado un indice, devuelve el tipo derivado que ocupa dicha posicion
+*/
+template<typename BA, typename K>
+using nth_derived = nth<cdr_t<BA>,K>;
+
+template<typename BA, typename K>
+using nth_derived_t = typename nth_derived<BA,K>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Dado un indice, devuelve el tipo derivado que ocupa dicha posicion
+*/
+template<typename DL, typename D, typename K>
+struct position_derived_aux{};
+
+template<typename T, typename TS, typename D, typename K>
+struct position_derived_aux<cons<T,TS>,D,K> : position_derived_aux<TS,D,add1_t<K>>{};
+
+template<typename TS, typename D, typename K>
+struct position_derived_aux<cons<D,TS>,D,K> : K{};
+
+template<typename BM, typename D>
+struct position_derived : position_derived_aux<cdr_t<BM>,D,zero>{};
+
+template<typename BM, typename D>
+using position_derived_t = typename position_derived<BM,D>::type;
+
+template<typename BM, typename D>
+static constexpr int position_derived_v = position_derived<BM,D>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Recibe un type_info de algun objeto y devuelve el indice que ocupa su tipo en un
+*   base_of_many.
+*/
+template<typename BM>
+struct position_derived_runtime_aux{
     static int call(const std::type_info& info){
         return 0;
     }
 };
 
+template<typename... T>
+struct Print{};
 
-template<typename B, Type_list D>
-requires (!is_null_type<D>::value)
-struct search_index_base<base_of_any<B,D>>{
+template<typename D, typename S>
+struct position_derived_runtime_aux<cons<D,S>>{
     static int call(const std::type_info& info){
-        if (info == typeid(typename car_type<D>::type))
+        if (info == typeid(D))
             return 0;
         else
-            return 1+search_index_base<base_of_any<B,typename cdr_type<D>::type>>::call(info);
+            return 1+position_derived_runtime_aux<S>::call(info);
+
+    }
+};
+
+template<typename BM>
+struct position_derived_runtime{
+    static int call(const std::type_info& info){
+        return position_derived_runtime_aux<cdr_t<BM>>::call(info);
     }
 };
 
 //---------------------------------------------------------------------------------
-//--------------------------- Virtual method template -----------------------------
+//---------------------------------- Signature ------------------------------------
 //---------------------------------------------------------------------------------
 
 /**
-*   Extrae el tipo de los argumentos de un tipo de funcion
+*   La signatura es una lista cuyo primer elemento es el tipo de retorno de una funcion
+*   y el resto de elementos son los tipos de los argumentos.
+*   Ademas, puede tener estos modificadores:
+*       - Virtual: Que contiene virtual_type.
+*       - Base: Los tipos que contienen los virtual_type son tipo polimorficos.
+*       - Derived: Los tipos que contienen los virtual_type son tipos derivados de un Base signature.
+*   De esta forma podemos distinguir entre Virtual Signature, Base Signature, Virtual Derived Signature, etc.
+*/
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma el tipo de una funcion en un signature.
 */
 template<typename T>
-requires std::is_function<T>::value
-struct extract_arg_types;
+struct ftype_to_sign{};
 
 template<typename R, typename... AS>
-struct extract_arg_types<R(AS...)>{
-    using type = typename create_type_list<AS...>::type;
-};
+struct ftype_to_sign<R(AS...)> : tlist<R,AS...>{};
 
+template<typename T>
+using ftype_to_sign_t = typename ftype_to_sign<T>::type;
+
+//---------------------------------------------------------------------------------
 
 /**
-*   Extrae el tipo de retorno de un tipo de funcion
+*   Devuelve a partir de una Virtual Base Signature los tipo de datos virtuales en su forma core.
 */
-template<typename T>
-requires std::is_function<T>::value
-struct extract_ret_type;
+template<typename VBS>
+struct get_base_core_types{};
+
+template<>
+struct get_base_core_types<nil> : nil{};
+
+template<typename B, typename BS>
+struct get_base_core_types<cons<B,BS>> : get_base_core_types<BS>{};
+
+template<typename B, typename BS>
+struct get_base_core_types<cons<virtual_type<B>,BS>> : cons<core_type_t<B>,typename get_base_core_types<BS>::type>{};
+
+template<typename VBS>
+using get_base_core_types_t = typename get_base_core_types<VBS>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma un virtual signature en un signature
+*/
+template<typename VT>
+struct vsign_to_sign : mapcar<open_virtual_type_if_virtual,VT>{};
+
+template<typename VT>
+using vsign_to_sign_t = typename vsign_to_sign<VT>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma un virtual base signature en un derived signature sustituyendo cada
+*   tipo virtual base por un tipo derivado en la lista D.
+*/
+template<typename VBS, typename DL>
+struct vbsign_to_dsign{};
+
+template<typename VBS>
+struct vbsign_to_dsign<VBS,nil> : VBS{};
+
+template<typename T, typename S, typename DL>
+struct vbsign_to_dsign<cons<virtual_type<T>,S>,DL> : cons<slice_type_t<T,car_t<DL>>,typename vbsign_to_dsign<S,cdr_t<DL>>::type>{};
+
+template<typename T, typename S, typename DL>
+struct vbsign_to_dsign<cons<T,S>,DL> : cons<T,typename vbsign_to_dsign<S,DL>::type>{};
+
+template<typename VBS, typename DL>
+using vbsign_to_dsign_t = typename vbsign_to_dsign<VBS,DL>::type;
+
+template<typename VBS>
+struct vbsign_to_dsign_c{
+    template<typename DL>
+    using type = vbsign_to_dsign_t<VBS,DL>;
+};
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma un virtual base signature en un derived signature sustituyendo cada
+*   tipo virtual base por un tipo derivado en la lista D.
+*/
+template<typename VBS, typename DComb>
+struct vbsign_to_dsign_combinations : mapcar<vbsign_to_dsign_c<VBS>::template type,DComb>{};
+
+template<typename VBS, typename DComb>
+using vbsign_to_dsign_combinations_t = typename vbsign_to_dsign_combinations<VBS,DComb>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Transforma un virtual base signature en un derived signature sustituyendo cada
+*   tipo virtual base por un tipo derivado en la lista D.
+*/
+template<typename VBS>
+struct vbsign_to_bsign{};
+
+template<>
+struct vbsign_to_bsign<nil> : nil{};
+
+template<typename B, typename BS>
+struct vbsign_to_bsign<cons<virtual_type<B>,BS>> : cons<B,typename vbsign_to_bsign<BS>::type>{};
+
+template<typename B, typename BS>
+struct vbsign_to_bsign<cons<B,BS>> : cons<B,typename vbsign_to_bsign<BS>::type>{};
+
+template<typename VBS>
+using vbsign_to_bsign_t = typename vbsign_to_bsign<VBS>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Retorna el tipo de una funcion a partir de una coleccion
+*/
+template<typename C>
+struct collection_to_function_type{};
 
 template<typename R, typename... AS>
-struct extract_ret_type<R(AS...)>{
-    using type = R;
+struct collection_to_function_type<collection<R,AS...>>{
+    using type = R(AS...);
 };
 
-
-/**
-*   Objeto que representa una plantilla con tipos virtuales
-*/
-template<typename R, Type_list A>
-struct virtual_method_template{
-    using type_ret = R;
-    using type_args = A;
-};
-
-
-/**
-*   Constructor de un method template
-*/
-template<typename T>
-struct create_virtual_method_template{
-    using type = virtual_method_template<typename extract_ret_type<T>::type,typename extract_arg_types<T>::type>;
-};
-
-
-/**
-*   Comprueba si una lista de tipos es una plantilla valida
-*/
-template<typename M>
-struct is_virtual_method_template;
-
-template<typename R, Type_list A>
-struct is_virtual_method_template<virtual_method_template<R,A>>{
-    static constexpr bool value = or_map_type<is_virtual_type,A>::value;
-};
-
-
-/**
-*   Tipo que representa la plantilla de un metodo
-*/
-template<typename T>
-concept Virtual_method_template = is_virtual_method_template<T>::value;
-
-
-/**
-*   Extrae los tipos virtuales de un virtual_method_template, por lo que devuelve un method_template
-*/
-template<typename R, Type_list A>
-struct method_template;
-
-template<Virtual_method_template M>
-struct extract_method_virtual_types{
-    using type = method_template<typename M::type_ret,typename extract_virtual_types<typename M::type_args>::type>;
-};
-
-
-/**
-*   Cambia los tipos virtuales de un virtual_method_template por los tipos derivados de D
-*/
-template<Virtual_method_template M, Type_list D>
-struct slice_method_virtual_types{
-    using type = virtual_method_template<typename M::type_ret,typename slice_virtual_types<typename M::type_args,D>::type>;
-};
-
-
-/**
-*   Cambia los tipos virtuales de un virtual_method_template por los tipos derivados de D y los extrae
-*/
-template<Virtual_method_template M, Type_list D>
-struct extract_slice_method_virtual_types{
-    using type = method_template<typename M::type_ret,typename extract_slice_virtual_types<typename M::type_args,D>::type>;
-};
-
-//---------------------------------------------------------------------------------
-//------------------------------- Method template ---------------------------------
-//---------------------------------------------------------------------------------
-
-
-/**
-*   Representa una plantilla sin tipos virtuales
-*/
-template<typename R, Type_list A>
-struct method_template{
-    using type_ret = R;
-    using type_args = A;
-};
-
-/**
-*   Constructor de la plantilla sin tipos virtuales
-*/
-template<Virtual_method_template M>
-struct create_method_template{
-    using type = typename extract_method_virtual_types<M>::type;
-};
-
-
-/**
-*   Comprueba si un tipo es un method template
-*/
-template<typename T>
-struct is_method_template{
-    static constexpr bool value = false;
-};
-
-template<typename R, Type_list A>
-struct is_method_template<method_template<R,A>>{
-    static constexpr bool value = true;
-};
-
-template<typename T>
-concept Method_template = is_method_template<T>::value;
-
-
-/**
-*   Convierte un method template en el tipo de una funcion
-*/
-template<Method_template M>
-struct method_template_to_function_type{
-    using type = typename type_list_to_function_type<typename M::type_ret,typename M::type_args>::type;
-};
-
+template<typename C>
+using collection_to_function_type_t = typename collection_to_function_type<C>::type;
 
 //---------------------------------------------------------------------------------
 
 /**
-*   Comprueba si es posible llamar a una funcion con ciertos argumentos
+*   Retorna el tipo de una funcion a partir de una signature
 */
-template<typename F, typename... NS>
-concept has_valid_implementation = requires (NS... args){
-    F::call(args...);
-};
+template<typename L>
+struct signature_to_function_type : collection_to_function_type<tlist_to_collection_t<L>>{};
+
+template<typename L>
+using signature_to_function_type_t = typename signature_to_function_type<L>::type;
+
+//---------------------------------------------------------------------------------
 
 /**
-*   Genera un puntero a una funcion que llama al metodo correspondiente tras realizar un casting
+*   Comprueba que el struct con las implementaciones tenga alguna valida para la signatura CD pasada
+*   mediante una coleccion.
 */
-template<Method_template O, Method_template N, typename F>
-struct make_function_cell;
+template<typename T>
+struct always_true : std::true_type{};
 
-template<typename R, typename... OS, typename... NS, typename F>
-requires has_valid_implementation<F,NS...>
-struct make_function_cell<method_template<R,type_list<OS...>>,method_template<R,type_list<NS...>>,F>{
-    static R value(OS... args){
-        return F::call(static_cast<NS>(args)...);
+template<typename T, typename... Bargs>
+struct check_implementation{
+
+    static std::false_type check(Bargs... bargs){
+        return std::false_type();
     }
+
+    template<typename... Dargs>
+    static auto check(Dargs... dargs) -> typename always_true<decltype(T::implementation(dargs...))>::type{
+        return std::true_type();
+    }
+
 };
 
-template<typename R, typename... OS, typename... NS, typename F>
-requires (!has_valid_implementation<F,NS...>)
-struct make_function_cell<method_template<R,type_list<OS...>>,method_template<R,type_list<NS...>>,F>{
+template<typename T, typename CB, typename CD>
+struct has_implementation{};
+
+template<typename T, typename R, typename... Bargs, typename... Dargs>
+struct has_implementation<T,collection<R,Bargs...>,collection<R,Dargs...>> : decltype(check_implementation<T,Bargs...>::check(std::declval<Dargs>()...)){};
+
+template<typename T, typename CB, typename CD>
+using has_implementation_t = typename has_implementation<T,CB,CD>::type;
+
+template<typename T, typename CB, typename CD>
+static constexpr bool has_implementation_v = has_implementation<T,CB,CD>::value;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Genera un puntero a una funcion que llama al metodo correspondiente tras realizar un casting.
+*   La signatura de la funcion value y la del casting son pasados mediante una coleccion
+*/
+template<typename HasImplementation, typename F, typename BC, typename DC>
+struct make_function_cell_aux{};
+
+template<typename F, typename R, typename... Bargs, typename... Dargs>
+struct make_function_cell_aux<std::false_type,F,collection<R,Bargs...>,collection<R,Dargs...>>{
     static constexpr std::nullptr_t value = nullptr;
 };
 
+template<typename F, typename R, typename... Bargs, typename... Dargs>
+struct make_function_cell_aux<std::true_type,F,collection<R,Bargs...>,collection<R,Dargs...>>{
+    static R value(Bargs... args){
+        return F::implementation(static_cast<Dargs>(args)...);
+    }
+};
+
+template<typename F, typename BS, typename DS>
+struct make_function_cell : make_function_cell_aux<has_implementation_t<F,tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>,
+                                                   F,tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>{};
+
 //---------------------------------------------------------------------------------
-//---------------------------------- Int list -------------------------------------
+//-------------------------------- Combinations -----------------------------------
 //---------------------------------------------------------------------------------
 
 /**
-*   Una lista de enteros
+*   Inserta un elemento en cada lista que se encuentra en una lista
 */
-template<int... ks>
-struct int_list;
+template<typename T, typename LL>
+using cons_all = mapcar<cons_c<T>::template type,LL>;
 
+template<typename T, typename LL>
+using cons_all_t = typename cons_all<T,LL>::type;
 
-template<int... ks>
-struct create_int_list{
-    using type = int_list<ks...>;
-};
-
-
-/**
-*   Comprueba si un tipo es una int_list
-*/
-template<typename L>
-struct is_int_list{
-    static constexpr bool value = false;
-};
-
-template<int... ks>
-struct is_int_list<int_list<ks...>>{
-    static constexpr bool value = true;
-};
-
-template<typename L>
-concept Int_list = is_int_list<L>::value;
-
-
-/**
-*   Comprueba que dos listas de enteros son iguales
-*/
-template<Int_list L1, Int_list L2>
-struct equal_int{
-    static constexpr bool value = true;
-};
-
-template<int k, int... ks, int r, int... rs>
-struct equal_int<int_list<k,ks...>,int_list<r,rs...>>{
-    static constexpr bool value = false;
-};
-
-template<int k, int... ks, int... rs>
-struct equal_int<int_list<k,ks...>,int_list<k,rs...>>{
-    static constexpr bool value = equal_int<int_list<ks...>,int_list<rs...>>::value;
-};
-
-
-/**
-*   Comprueba si una lista de enteros esta vacia
-*/
-template<Int_list L>
-struct is_null_int{
-    static constexpr bool value = true;
-};
-
-template<int k, int... ks>
-struct is_null_int<int_list<k,ks...>>{
-    static constexpr bool value = false;
-};
-
-
-/**
-*   Inserta un entero al inicio
-*/
-template<int k, Int_list L>
-struct cons_int;
-
-template<int k, int... ks>
-struct cons_int<k,int_list<ks...>>{
-    using type = int_list<k,ks...>;
-};
-
-
-/**
-*   Retorna el primer entero de la lista
-*/
-template<Int_list L>
-struct car_int;
-
-template<int k, int... ks>
-struct car_int<int_list<k,ks...>>{
-    static constexpr int value = k;
-};
-
-
-/**
-*   Elimina el primer entero de la lista
-*/
-template<Int_list L>
-struct cdr_int;
-
-template<int k, int... ks>
-struct cdr_int<int_list<k,ks...>>{
-    using type = int_list<ks...>;
-};
-
-
-/**
-*   Retorna el numero de enteros de una int_list
-*/
-template<Int_list L>
-struct length_int{
-    static constexpr int value = 0;
-};
-
-template<int k, int... ks>
-struct length_int<int_list<k,ks...>>{
-    static constexpr int value = 1+length_int<int_list<ks...>>::value;
-};
-
-
-/**
-*   Ejecuta una fucnion sobre cada elemento y devuelve una int_list con los resultados
-*/
-template<template<int> typename F, Int_list L>
-struct map_int;
-
-template<template<int> typename F, int... ks>
-struct map_int<F,int_list<ks...>>{
-    using type = int_list<F<ks>::value...>;
-};
-
-
-/**
-*   Concatena dos listas de enteros
-*/
-template<Int_list L1, Int_list L2>
-struct append_int;
-
-template<int... ks, int... rs>
-struct append_int<int_list<ks...>,int_list<rs...>>{
-    using type = int_list<ks...,rs...>;
+template<typename LL>
+struct cons_all_c_inv{
+    template<typename T>
+    using type = cons_all_t<T,LL>;
 };
 
 //---------------------------------------------------------------------------------
 
 /**
-*   Crea una lista de ceros
+*   Realiza el producto cartesiano de dos listas
 */
-template<int k>
-struct make_zeros{
-    using type = typename cons_int<0,typename make_zeros<k-1>::type>::type;
-};
+template<typename L, typename M>
+struct cartesian_product_aux : apply<append,mapcar_t<cons_all_c_inv<M>::template type,L>>{};
 
-template<>
-struct make_zeros<0>{
-    using type = typename create_int_list<>::type;
-};
+template<typename... LS>
+struct cartesian_product : reduce_from_end<flip<cartesian_product_aux>::template type,tlist_t<nil>,tlist_t<LS...>>{};
+
+template<typename... LS>
+using cartesian_product_t = typename cartesian_product<LS...>::type;
 
 //---------------------------------------------------------------------------------
 
 /**
-*   Decrementa el ultimo digito que no sea cero, sustituyendo los ceros del final por los digitos de M.
+*   Retorna una lista con los numeros menores que uno dado hasta el 0.
 */
-template<Int_list L, Int_list M>
-struct decrease_int_list;
+template<typename K, typename M>
+struct less_numbers_aux : cons<K,typename less_numbers_aux<add1_t<K>,M>::type>{};
 
-template<int k, Int_list M>
-struct decrease_int_list<int_list<k>,M>{
-    using type = int_list<k-1>;
-};
+template<typename M>
+struct less_numbers_aux<M,M> : nil{};
 
-template<int k, int j, int... ks, int r, int s, int... rs>
-requires (!equal_int<int_list<j,ks...>,typename make_zeros<length_int<int_list<j,ks...>>::value>::type>::value)
-struct decrease_int_list<int_list<k,j,ks...>,int_list<r,s,rs...>>{
-    using type = typename cons_int<k,typename decrease_int_list<int_list<j,ks...>,int_list<s,rs...>>::type>::type;
-};
+template<typename M>
+using less_numbers = less_numbers_aux<zero,M>;
 
-template<int k, int j, int... ks, int r, int s, int... rs>
-requires equal_int<int_list<j,ks...>,typename make_zeros<length_int<int_list<j,ks...>>::value>::type>::value
-struct decrease_int_list<int_list<k,j,ks...>,int_list<r,s,rs...>>{
-    using type = int_list<k-1,s,rs...>;
-};
+template<typename M>
+using less_numbers_t = typename less_numbers<M>::type;
 
 //---------------------------------------------------------------------------------
 
 /**
-*   Crea una lista de todas las combinaciones de numeros entre 0 y el numero indicado
-*   en la int_list pasada como parametro
+*   Crea una lista de todas las combinaciones de numeros entre 0 y cada numero de la lista.
 */
-template<Type_list L, Int_list M>
-struct make_combinations_aux{
-    using type = L;
-};
+template<typename TID>
+struct make_indices : apply<cartesian_product,mapcar_t<less_numbers,mapcar_t<length_of_derived,TID>>>{};
 
-template<typename T, typename... TS, Int_list M>
-requires (!equal_int<T,typename make_zeros<length_int<T>::value>::type>::value)
-struct make_combinations_aux<type_list<T,TS...>,M>{
-    using type = typename make_combinations_aux<type_list<typename decrease_int_list<T,M>::type,T,TS...>,M>::type;
-};
-
-template<Int_list M>
-struct make_combinations{
-    using type = typename make_combinations_aux<type_list<M>,M>::type;
-};
+template<typename TID>
+using make_indices_t = typename make_indices<TID>::type;
 
 //---------------------------------------------------------------------------------
 //------------------------------- Type id converter -------------------------------
 //---------------------------------------------------------------------------------
 
 /**
-*   Tipo que representa un conversor entre un tipo y un identificador (o indice para la tabla)
+*   Un tipe_id es una lista de base_of_many
 */
-template<Base_of_any... BS>
-struct type_id;
+
+//---------------------------------------------------------------------------------
 
 /**
-*   Constructor de un type id
+*   Genera un type_id a partir de un virtual base signature y una lista de tipos derivados.
 */
-template<Type_list B, Type_list D>
-struct create_type_id;
+template<typename BCL, typename DL>
+struct create_type_id : mapcar<create_base_of_many_c_inv<DL>::template type,BCL>{};
 
-template<typename... BS, Type_list D>
-struct create_type_id<type_list<BS...>,D>{
-    using type = type_id<typename create_base_of_any<BS,D>::type...>;
-};
+template<typename BCL, typename DL>
+using create_type_id_t = typename create_type_id<BCL,DL>::type;
 
+//---------------------------------------------------------------------------------
 
 /**
-*   Comprueba si un tipo es type id
+*   Retorna una lista de tipos cuyos indices en el type_id son los que se pasan como parametro
 */
-template<typename T>
-struct is_type_id{
-    static constexpr bool value = false;
-};
+template<typename Tid, typename KS>
+struct indices_to_types : mapcar<apply_c<nth>::template type,zip_t<mapcar_t<cdr,Tid>,KS>>{};
 
-template<Base_of_any... BS>
-struct is_type_id<type_id<BS...>>{
-    static constexpr bool value = true;
-};
+template<typename Tid, typename KS>
+using indices_to_types_t = typename indices_to_types<Tid,KS>::type;
 
-template<typename T>
-concept Type_id = is_type_id<T>::value;
-
-
-/**
-*   Retorna el indice de un tipo D sabiendo que su tipo base es B
-*/
-template<Type_id C, typename B, typename D>
-struct type_to_index;
-
-template<Base_of_any B, Base_of_any... BS, typename Ba, typename D>
-requires std::same_as<typename B::type_base,Ba>
-struct type_to_index<type_id<B,BS...>,Ba,D>{
-    static constexpr int value = member_at_type<typename B::type_derived,D>::value;
-};
-
-template<Base_of_any B, Base_of_any... BS, typename Ba, typename D>
-requires (!std::same_as<typename B::type_base,Ba>)
-struct type_to_index<type_id<B,BS...>,Ba,D>{
-    static constexpr int value = type_to_index<type_id<BS...>,Ba,D>::value;
-};
-
-
-/**
-*   Retorna el tipo que ocupa la posicion k sabiendo que su tipo base es B
-*/
-template<Type_id C, typename B, int k>
-struct index_to_type;
-
-template<Base_of_any B, Base_of_any... BS, typename Ba, int k>
-requires std::same_as<typename B::type_base,B>
-struct index_to_type<type_id<B,BS...>,Ba,k>{
-    using type = typename ref_type<typename B::type_derived,k>::type;
-};
-
-template<Base_of_any B, Base_of_any... BS, typename Ba, int k>
-requires (!std::same_as<typename B::type_base,B>)
-struct index_to_type<type_id<B,BS...>,Ba,k>{
-    using type = typename ref_type<typename B::type_derived,k>::type;
-};
-
-
-/**
-*   Retorna una lista de tipos cuyos indices en la tabla son los que se pasan como parametro
-*/
-template<Type_id C, Int_list L>
-struct indices_to_types{
-    using type = type_list<>;
-};
-
-template<Base_of_any B, Base_of_any... BS, int k, int... ks>
-struct indices_to_types<type_id<B,BS...>,int_list<k,ks...>>{
-    using type = typename cons_type<typename index_to_type<type_id<B,BS...>,typename B::type_base,k>::type,typename indices_to_types<type_id<BS...>,int_list<ks...>>::type>::type;
+template<typename Tid>
+struct indices_to_types_c{
+    template<typename KS>
+    using type = indices_to_types_t<Tid,KS>;
 };
 
 //---------------------------------------------------------------------------------
@@ -1018,127 +1124,86 @@ struct indices_to_types<type_id<B,BS...>,int_list<k,ks...>>{
 /**
 *   Retorna una lista con el numero de tipos derivados que contiene cada base
 */
-template<Type_id C>
-struct length_of_each_base;
+template<typename Tid>
+struct length_of_each_base : mapcar<length_of_derived,Tid>{};
 
-template<Base_of_any... BS>
-struct length_of_each_base<type_id<BS...>>{
-    using type = int_list<length_of_base<BS>::value...>;
-};
+template<typename Tid>
+using length_of_each_base_t = typename length_of_each_base<Tid>::type;
 
 //---------------------------------------------------------------------------------
 
 /**
 *   Devuelve una lista con todas las posibles combinaciones de tipos derivados
 */
-template<Type_id C, Type_list N>
-struct make_derived_combinations_aux;
+template<typename Tid, typename IND>
+struct make_derived_combinations : mapcar<indices_to_types_c<Tid>::template type,IND>{};
 
-template<Type_id C, Int_list... NS>
-struct make_derived_combinations_aux<C,type_list<NS...>>{
-    using type = typename create_type_list<typename indices_to_types<C,NS>::type...>::type;
+template<typename Tid, typename IND>
+using make_derived_combinations_t = typename make_derived_combinations<Tid,IND>::type;
+
+//---------------------------------------------------------------------------------
+
+/**
+*   Devuelve el typeid de la clase hija subyacente
+*/
+template<typename IsPtr, typename A>
+struct get_type_id_aux{
+    static const std::type_info& call(A&& a){
+        return typeid(a);
+    }
 };
 
-template<int k>
-struct sub1{
-    static constexpr int value = k-1;
+template<typename A>
+struct get_type_id_aux<std::true_type,A>{
+    static const std::type_info& call(A&& a){
+        return typeid(*a);
+    }
 };
 
-template<Type_id C>
-struct make_derived_combinations{
-    using type = typename make_derived_combinations_aux<C,typename make_combinations<typename map_int<sub1,typename length_of_each_base<C>::type>::type>::type>::type;
+template<typename A>
+struct get_type_id{
+    static const std::type_info& call(A&& a){
+        return get_type_id_aux<std::is_pointer_t<std::remove_reference_t<A>>,A>::call(std::forward<A>(a));
+    }
 };
 
 //---------------------------------------------------------------------------------
 
-template<Type_id C>
-struct get_index_multiplier_aux{
-    static constexpr int value = 1;
-};
-
-template<Base_of_any B, Base_of_any... BS>
-struct get_index_multiplier_aux<type_id<B,BS...>>{
-    static constexpr int value = length_of_base<B>::value*get_index_multiplier_aux<type_id<BS...>>::value;
-};
-
-template<Type_id C>
-struct get_index_multiplier;
-
-template<Base_of_any B, Base_of_any... BS>
-struct get_index_multiplier<type_id<B,BS...>>{
-    static constexpr int value = get_index_multiplier_aux<type_id<BS...>>::value;
-};
-
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//--------------------------------- Get index -------------------------------------
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-
-template<Type_id C, typename M>
-struct get_index_aux_3;
-
-template<typename M>
-struct get_index_aux_3<type_id<>,M>{
-    template<typename... AS>
-    static int call(int curr_ind, AS&&... as){
-        return curr_ind;
-    }
-};
-
-template<Base_of_any B, Base_of_any... BS, typename R,typename T, typename... TS>
-requires (!is_virtual_type<T>::value)
-struct get_index_aux_3<type_id<B,BS...>,virtual_method_template<R,type_list<T,TS...>>>{
-    template<typename A, typename... AS>
-    static int call(int curr_ind, A&& a, AS&&... as){
-        return get_index_aux_3<type_id<B,BS...>,virtual_method_template<R,type_list<TS...>>>::call(curr_ind,std::forward<AS>(as)...);
-    }
-};
-
-template<Base_of_any B, Base_of_any... BS, typename R, Virtual_type T, typename... TS>
-requires (std::is_reference<typename T::type>::value)
-struct get_index_aux_3<type_id<B,BS...>,virtual_method_template<R,type_list<T,TS...>>>{
-    template<typename A, typename... AS>
-    static int call(int curr_ind, A&& a, AS&&... as){
-        return get_index_aux_3<type_id<BS...>,virtual_method_template<R,type_list<TS...>>>::call(curr_ind+search_index_base<B>::call(typeid(a))*get_index_multiplier<type_id<B,BS...>>::value,std::forward<AS>(as)...);
-    }
-};
-
-template<Base_of_any B, Base_of_any... BS, typename R,Virtual_type T, typename... TS>
-requires (std::is_pointer<typename T::type>::value)
-struct get_index_aux_3<type_id<B,BS...>,virtual_method_template<R,type_list<T,TS...>>>{
-    template<typename A, typename... AS>
-    static int call(int curr_ind, A&& a, AS&&... as){
-        return get_index_aux_3<type_id<BS...>,virtual_method_template<R,type_list<TS...>>>::call(curr_ind+search_index_base<B>::call(typeid(*a))*get_index_multiplier<type_id<B,BS...>>::value,std::forward<AS>(as)...);
-    }
-};
-
-template<Type_id C, Virtual_method_template M>
-struct get_index_aux_2;
-
-template<Base_of_any... BS, Virtual_method_template M>
-struct get_index_aux_2<type_id<BS...>,M>{
-    template<typename A, typename... AS>
-    static int call(A&& a, AS&&... as){
-        return get_index_aux_3<type_id<BS...>,M>::call(0,std::forward<A>(a),std::forward<AS>(as)...);
-    }
-};
-
-template<Type_list D, Virtual_method_template M>
+/**
+*   Devuelve el indice del puntero a la funcion que se debe llamar a partir de los argumentos
+*/
+template<typename Tid, typename VBS, typename... AS>
 struct get_index_aux{
-    template<typename A, typename... AS>
-    static int call(A&& a, AS&&... as){
-        return get_index_aux_2<typename create_type_id<typename get_virtual_core_types<typename M::type_args>::type,D>::type,M>::call(std::forward<A>(a),std::forward<AS>(as)...);
+    static constexpr int current_multiplier = 1;
+    static int call(AS&&... as){
+        return 0;
     }
 };
 
-template<typename T, typename... DS>
-struct get_index{
-    template<typename A, typename... AS>
+template<typename Tid, typename B, typename BS, typename A, typename... AS>
+struct get_index_aux<Tid,cons<B,BS>,A,AS...>{
+    static constexpr int current_multiplier = get_index_aux<Tid,BS,AS...>::current_multiplier;
     static int call(A&& a, AS&&... as){
-        return get_index_aux<typename create_type_list<DS...>::type,typename create_virtual_method_template<T>::type>::call(std::forward<A>(a),std::forward<AS>(as)...);
+        return get_index_aux<Tid,BS,AS...>::call(std::forward<AS>(as)...);
     }
 };
+
+template<typename T, typename TS, typename B, typename BS, typename A, typename... AS>
+struct get_index_aux<cons<T,TS>,cons<virtual_type<B>,BS>,A,AS...>{
+    static constexpr int current_multiplier = get_index_aux<TS,BS,AS...>::current_multiplier*length_of_derived_v<T>;
+    static int call(A&& a, AS&&... as){
+        return get_index_aux<TS,BS,AS...>::call(std::forward<AS>(as)...)
+               + position_derived_runtime<T>::call(get_type_id<A>::call(std::forward<A>(a)))*get_index_aux<TS,BS,AS...>::current_multiplier;
+    }
+};
+
+template<typename Tid, typename VBS, typename... AS>
+struct get_index{
+    static int call(AS&&... as){
+        return get_index_aux<Tid,cdr_t<VBS>,AS...>::call(std::forward<AS>(as)...);
+    }
+};
+
 
 //---------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------
@@ -1146,30 +1211,19 @@ struct get_index{
 //---------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------
 
-template<Type_list D, Virtual_method_template O, typename F>
-struct generate_table_aux3;
+template<typename F, typename BS, typename DSComb>
+struct create_table_omm_aux{};
 
-template<Type_list... DS, Virtual_method_template O, typename F>
-struct generate_table_aux3<type_list<DS...>,O,F>{
-    static constexpr std::add_pointer<typename method_template_to_function_type<typename create_method_template<O>::type>::type>::type value[] =
-                    {make_function_cell<typename create_method_template<O>::type,typename extract_slice_method_virtual_types<O,DS>::type,F>::value...};
+template<typename F, typename BS, typename... DS>
+struct create_table_omm_aux<F,BS,collection<DS...>>{
+    static constexpr std::add_pointer_t<signature_to_function_type_t<BS>> value[] = {make_function_cell<F,BS,DS>::value...};
 };
 
-template<Type_id C, Virtual_method_template O, typename F>
-struct generate_table_aux2{
-    static constexpr auto value = generate_table_aux3<typename make_derived_combinations<C>::type,O,F>::value;
-};
+template<typename F, typename BS, typename DSComb>
+struct create_table_omm : create_table_omm_aux<F,BS,tlist_to_collection_t<DSComb>>{};
 
-template<Virtual_method_template O, Type_list D, typename F>
-struct generate_table_aux{
-    static constexpr auto value = generate_table_aux2<typename create_type_id<typename get_virtual_core_types<typename O::type_args>::type,D>::type,O,F>::value;
-
-};
-
-template<typename F, typename T, typename... DS>
-struct generate_table{
-    static constexpr auto value = generate_table_aux<typename create_virtual_method_template<T>::type,typename create_type_list<DS...>::type,F>::value;
-};
+template<typename F, typename BS, typename DSComb>
+static constexpr auto create_table_omm_v = create_table_omm<F,BS,DSComb>::value;
 
 
 //---------------------------------------------------------------------------------
@@ -1179,14 +1233,54 @@ struct generate_table{
 //---------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------
+//                              vbsign_to_bsign  -------------> BS = tlist<R,BArgs> ---------------------
+//                                              |                                                        |
+//                                              |                                    *create_table_omm*  |
+//                                              |                                    make_function_cell  |
+//                        ftype_to_sign         |                                                        v
+//funtion_type = R(VBArgs...) ---> VBS = tlist<R,VBArgs...> *--->* DSCOMB = tlist<R,DArgs...> *--->* table_omm  <----- type with implementations
+//                                         |                                *
+//                                         | *vbsign_to_dsign_combinations* ^
+//                    get_base_core_types  |               vbsign_to_dsign  |
+//                                         |                                |
+//                                         v                                *
+//                                  BCL = tlist<BCArgs...>      Combination Derived Type
+//                                         |                      ^         *
+//                                         |  *make_derived_combinations*   ^
+//                                         |        ------------/           |
+//                         create_type_id  |       /  indices_to_types      |
+//                                         v      /                         *
+//                              DCL ----> TID    ------------------>     Indices
+//                                                 *make_indices*
 
-template<typename F, typename T, typename... DS>
+
+
+/**
+*
+*/
+template<typename F, typename ftype, typename DCL>
 struct table_omm{
+
+    using VBS                   = ftype_to_sign_t<ftype>;
+    using BCL                   = get_base_core_types_t<VBS>;
+    using BS                    = vbsign_to_bsign_t<VBS>;
+    using TID                   = create_type_id_t<BCL,DCL>;
+    using IND                   = make_indices_t<TID>;
+    using DCOMB                 = make_derived_combinations_t<TID,IND>;
+    using DSCOMB                = vbsign_to_dsign_combinations_t<VBS,DCOMB>;
+    static constexpr auto table = create_table_omm_v<F,BS,DSCOMB>;
+
     template<typename... AS>
     static auto call(AS&&... as){
-        return generate_table<F,T,DS...>::value[get_index<T,DS...>::call(std::forward<AS>(as)...)](std::forward<AS>(as)...);
+        return table[get_index<TID,VBS,AS...>::call(std::forward<AS>(as)...)](std::forward<AS>(as)...);
     }
 };
+
+
+// Interfaz
+
+template<typename... DS>
+using WithTypes = tlist_t<DS...>;
 
 
 #endif // OMM_H_INCLUDED

@@ -1,7 +1,7 @@
 #ifndef FIGURA_H_INCLUDED
 #define FIGURA_H_INCLUDED
 
-#include "omm.h"
+#include "../omm.h"
 #include <string>
 #include <iostream>
 

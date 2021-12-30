@@ -1,6 +1,6 @@
 
 
-#include "omm.h"
+#include "../omm.h"
 #include "figura.h"
 #include <iostream>
 
