@@ -6,55 +6,55 @@
 #include <iostream>
 
 
-struct Figura{
-    virtual  ~Figura(){}   // <-- La clase debe ser polimorfica (al menos un método virtual)
+struct Shape{
+    virtual  ~Shape(){}   // <-- The class must be polymorphic (at least one virtual method)
 };
 
-struct Elipse : Figura{};
+struct Ellipse : Shape{};
 
-struct Circulo : Elipse{};
+struct Circle : Ellipse{};     // <-- Accepts complex inheritance hierarchy.
 
-struct Rectangulo : Figura{};
+struct Rectangle : Shape{};
 
-struct Triangulo : Figura{};
+struct Triangle : Shape{};
 
 
 
 struct Animal{
-    virtual void walk(){}
+    virtual void walk(){}   // <-- The class must be polymorphic (at least one virtual method)
 };
 
-struct Perro : Animal{};
+struct Dog : Animal{};
 
-struct Gato : Animal{};
+struct Cat : Animal{};
 
 
-using intersect_template = void(Virtual<Animal*>,int,Virtual<Figura*>,float,Virtual<const Figura&>);
+struct example_implementations{
 
-struct intersect{
-
-    static void implementation(Perro* c, int k,Rectangulo* r2, float fl, const Circulo& p2){
-        std::cout << "Perro - Rectangulo - Circulo" << std::endl;
+    static void implementation(Dog* c, int k,volatile Rectangle* r2, float fl, const Circle& p2){
+        std::cout << "Dog - Rectangle - Circle" << std::endl;
     }
 
-    static void implementation(Gato* t, int k, Triangulo* t2, float fl, const Elipse& p3){
-        std::cout << "Gato - Triangulo - Elipse" << std::endl;
+    static void implementation(Cat* t, int k, volatile Triangle* t2, float fl, const Ellipse& p3){
+        std::cout << "Cat - Triangle - Ellipse" << std::endl;
     }
 
-//    static void implementation(Gato* t, int k, Elipse& c, Gato& p, Triangulo* t2, float fl, Perro& p3){
-//        std::cout << "Gato - " << k << " - Elipse - Gato - Triangulo - Perro " << fl << std::endl;
-//    }
-//
-//    static void implementation(Perro* t, int k, Triangulo& t2, Perro& p, Rectangulo* r, float fl, Gato& g2){
-//        std::cout << "Perro - " << k << " - Triangulo - Perro - Rectangulo - Gato " << fl << std::endl;
-//    }
+    static void implementation(Cat* t, int k, volatile Circle* t2, float fl, const Rectangle& p3){
+        std::cout << "Cat - Circle - Rectangle" << std::endl;
+    }
+
+    static void implementation(Dog* t, int k, volatile Rectangle* r, float fl, const Rectangle& g2){
+        std::cout << "Dog - Rectangle - Rectangle" << std::endl;
+    }
 
 };
 
-using intersect_table = table_omm<intersect,intersect_template,WithTypes<Circulo,Perro,Rectangulo,Gato,Triangulo,Elipse>>;
+using table_example = table_omm<WithImplementations<example_implementations>,
+                                WithSignature<void(Virtual<Animal*>,int,Virtual<volatile Shape*>,float,Virtual<const Shape&>)>,
+                                WithDerivedTypes<Circle,Dog,Rectangle,Cat,Triangle,Ellipse>>;
 
-void intersect(Animal* f, int k, Figura* t, float fl, const Figura& a2){
-    intersect_table::call(f,k,t,fl,a2);
+void example_function(Animal* a, int n, volatile Shape* f1, float k, const Shape& f2){
+    table_example::call(a,n,f1,k,f2);
 }
 
 
