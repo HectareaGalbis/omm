@@ -5,6 +5,35 @@
 #include <type_traits>
 #include <algorithm>
 
+
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+//--------------------------------- Table omm -------------------------------------
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+//                              vbsign_to_bsign  -------------> BS = tlist<R,BArgs> ---------------------
+//                                              |                                                        |
+//                                              |                                    *create_table_omm*  |
+//                                              |                                    make_function_cell  |
+//                        ftype_to_sign         |                                                        v
+//funtion_type = R(VBArgs...) ---> VBS = tlist<R,VBArgs...> *--->* DSCOMB = tlist<R,DArgs...> *--->* table_omm  <----- type with implementations
+//                                         |                                *
+//                                         | *vbsign_to_dsign_combinations* ^
+//                    get_base_core_types  |               vbsign_to_dsign  |
+//                                         |                                |
+//                                         v                                *
+//                                  BCL = tlist<BCArgs...>      Combination Derived Type
+//                                         |                      ^         *
+//                                         |  *make_derived_combinations*   ^
+//                                         |        ------------/           |
+//                         create_type_id  |       /  indices_to_types      |
+//                                         v      /                         *
+//                              DCL ----> TID    ------------------>     Indices
+//                                                 *make_indices*
+
+
 //---------------------------------------------------------------------------------
 //---------------------------------- Data types -----------------------------------
 //---------------------------------------------------------------------------------
@@ -67,23 +96,6 @@ using sub1_t = typename sub1<T>::type;
 
 template<typename T>
 static constexpr int sub1_v = sub1<T>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Multiplica dos enteros
-*/
-template<typename... TS>
-struct mult : one{};
-
-template<typename T, typename... TS>
-struct mult<T,TS...> : int_constant<T::value*mult<TS...>::value>{};
-
-template<typename... TS>
-using mult_t = typename mult<TS...>::type;
-
-template<typename... TS>
-static constexpr int mult_v = mult<TS...>::value;
 
 //---------------------------------------------------------------------------------
 //---------------------------------------------------------------------------------
@@ -184,23 +196,6 @@ using tlist_to_collection_t = typename tlist_to_collection<T>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Comprueba si el tipo es nil o no.
-*/
-template<typename T>
-struct null : std::false_type{};
-
-template<>
-struct null<nil> : std::true_type{};
-
-template<typename T>
-using null_t = typename null<T>::type;
-
-template<typename T>
-static constexpr bool null_v = null<T>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
 *   Devuelve el primer elemento de una lista
 */
 template<typename L>
@@ -272,74 +267,6 @@ using length_t = typename length<L>::type;
 
 template<typename L>
 static constexpr int length_v = length<L>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Retorna true si encuentra un elemento presente en una lista
-*/
-template<typename T, typename L>
-struct member{};
-
-template<typename T>
-struct member<T,nil> : std::false_type{};
-
-template<typename T, typename R, typename S>
-struct member<T,cons<R,S>> : member<T,S>{};
-
-template<typename T, typename S>
-struct member<T,tlist<T,S>> : std::true_type{};
-
-template<typename T, typename L>
-using member_t = typename member<T,L>::type;
-
-template<typename T, typename L>
-static constexpr bool member_v = member<T,L>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Retorna el indice de un elemento en una type_list
-*/
-template<typename T, typename L, typename K>
-struct position_aux : position_aux<T,cdr_t<L>,add1_t<K>>{};
-
-template<typename T, typename S, typename K>
-struct position_aux<T,cons<T,S>,K> : K{};
-
-template<typename T, typename L>
-struct position : position_aux<T,L,zero>{};
-
-template<typename T, typename L>
-using position_t = typename position<T,L>::type;
-
-template<typename T, typename L>
-static constexpr int position_v = position<T,L>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Devuelve el primer elemento de una lista que cumple con una condicion
-*/
-template<template<typename> typename P, typename L>
-struct find_if{};
-
-template<typename Found, template<typename> typename P, typename T, typename L>
-struct found_if : find_if<P,L>{};
-
-template<template<typename> typename P, typename T, typename L>
-struct found_if<std::true_type,P,T,L>{
-    using type = T;
-};
-
-template<template<typename> typename P>
-struct find_if<P,nil> : nil{};
-
-template<template<typename> typename P, typename T, typename S>
-struct find_if<P,cons<T,S>> : found_if<typename P<T>::type,P,T,S>{};
-
-template<template<typename> typename P, typename L>
-using find_if_t = typename find_if<P,L>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -445,23 +372,6 @@ struct apply_c{
     template<typename... S>
     using type = apply<P,S...>;
 };
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Retorna false_type si algun elemento de la lista es false_type
-*/
-template<typename... TS>
-struct and_type : std::true_type{};
-
-template<typename T, typename... TS>
-struct and_type<T,TS...> : and_type<TS...>{};
-
-template<typename... TS>
-struct and_type<std::false_type,TS...> : std::false_type{};
-
-template<typename... TS>
-using and_type_t = typename and_type<TS...>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -642,52 +552,6 @@ struct virtual_type{
 //---------------------------------------------------------------------------------
 
 /**
-*   Extrae el tipo dentro de virtual_type
-*/
-template<typename T>
-struct open_virtual_type{};
-
-template<typename T>
-struct open_virtual_type<virtual_type<T>>{
-    using type = T;
-};
-
-template<typename T>
-using open_virtual_type_t = typename open_virtual_type<T>::type;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Extrae el tipo de un virtual type si, efectivamente, es un virtual_type.
-*   En otro caso devuelve el tipo recibido.
-*/
-template<typename T>
-struct open_virtual_type_if_virtual{
-    using type = T;
-};
-
-template<typename T>
-struct open_virtual_type_if_virtual<virtual_type<T>>{
-    using type = T;
-};
-
-template<typename T>
-using open_virtual_type_if_virtual_t = typename open_virtual_type_if_virtual<T>::type;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Traslada virtual_type, punteros, referencias y cualificadores a otro tipo.
-*/
-template<typename VT, typename S>
-struct slice_virtual_type : virtual_type<slice_type_t<open_virtual_type_t<VT>,S>>{};
-
-template<typename VT, typename S>
-using slice_virtual_type_t = typename slice_virtual_type<VT,S>::type;
-
-//---------------------------------------------------------------------------------
-
-/**
 *   Comprueba si un tipo de dato es un puntero o una referencia a un tipo polimorfico (que contiene al menos un metodo virtual).
 */
 template<typename T>
@@ -747,40 +611,6 @@ using length_of_derived_t = typename length_of_derived<BA>::type;
 
 template<typename BA>
 static constexpr int length_of_derived_v = length_of_derived<BA>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Dado un indice, devuelve el tipo derivado que ocupa dicha posicion
-*/
-template<typename BA, typename K>
-using nth_derived = nth<cdr_t<BA>,K>;
-
-template<typename BA, typename K>
-using nth_derived_t = typename nth_derived<BA,K>::type;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Dado un indice, devuelve el tipo derivado que ocupa dicha posicion
-*/
-template<typename DL, typename D, typename K>
-struct position_derived_aux{};
-
-template<typename T, typename TS, typename D, typename K>
-struct position_derived_aux<cons<T,TS>,D,K> : position_derived_aux<TS,D,add1_t<K>>{};
-
-template<typename TS, typename D, typename K>
-struct position_derived_aux<cons<D,TS>,D,K> : K{};
-
-template<typename BM, typename D>
-struct position_derived : position_derived_aux<cdr_t<BM>,D,zero>{};
-
-template<typename BM, typename D>
-using position_derived_t = typename position_derived<BM,D>::type;
-
-template<typename BM, typename D>
-static constexpr int position_derived_v = position_derived<BM,D>::value;
 
 //---------------------------------------------------------------------------------
 
@@ -863,17 +693,6 @@ struct get_base_core_types<cons<virtual_type<B>,BS>> : cons<core_type_t<B>,typen
 
 template<typename VBS>
 using get_base_core_types_t = typename get_base_core_types<VBS>::type;
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Transforma un virtual signature en un signature
-*/
-template<typename VT>
-struct vsign_to_sign : mapcar<open_virtual_type_if_virtual,VT>{};
-
-template<typename VT>
-using vsign_to_sign_t = typename vsign_to_sign<VT>::type;
 
 //---------------------------------------------------------------------------------
 
@@ -1122,17 +941,6 @@ struct indices_to_types_c{
 //---------------------------------------------------------------------------------
 
 /**
-*   Retorna una lista con el numero de tipos derivados que contiene cada base
-*/
-template<typename Tid>
-struct length_of_each_base : mapcar<length_of_derived,Tid>{};
-
-template<typename Tid>
-using length_of_each_base_t = typename length_of_each_base<Tid>::type;
-
-//---------------------------------------------------------------------------------
-
-/**
 *   Devuelve una lista con todas las posibles combinaciones de tipos derivados
 */
 template<typename Tid, typename IND>
@@ -1226,32 +1034,7 @@ template<typename F, typename BS, typename DSComb>
 static constexpr auto create_table_omm_v = create_table_omm<F,BS,DSComb>::value;
 
 
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//--------------------------------- Table omm -------------------------------------
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//                              vbsign_to_bsign  -------------> BS = tlist<R,BArgs> ---------------------
-//                                              |                                                        |
-//                                              |                                    *create_table_omm*  |
-//                                              |                                    make_function_cell  |
-//                        ftype_to_sign         |                                                        v
-//funtion_type = R(VBArgs...) ---> VBS = tlist<R,VBArgs...> *--->* DSCOMB = tlist<R,DArgs...> *--->* table_omm  <----- type with implementations
-//                                         |                                *
-//                                         | *vbsign_to_dsign_combinations* ^
-//                    get_base_core_types  |               vbsign_to_dsign  |
-//                                         |                                |
-//                                         v                                *
-//                                  BCL = tlist<BCArgs...>      Combination Derived Type
-//                                         |                      ^         *
-//                                         |  *make_derived_combinations*   ^
-//                                         |        ------------/           |
-//                         create_type_id  |       /  indices_to_types      |
-//                                         v      /                         *
-//                              DCL ----> TID    ------------------>     Indices
-//                                                 *make_indices*
+
 
 
 
