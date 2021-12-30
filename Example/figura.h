@@ -29,15 +29,15 @@ struct Perro : Animal{};
 struct Gato : Animal{};
 
 
-using intersect_template = void(Virtual<Animal*>,int,Virtual<Figura*>,float,Virtual<Figura&>);
+using intersect_template = void(Virtual<Animal*>,int,Virtual<Figura*>,float,Virtual<const Figura&>);
 
 struct intersect{
 
-    static void implementation(Perro* c, int k,Rectangulo* r2, float fl, Circulo& p2){
+    static void implementation(Perro* c, int k,Rectangulo* r2, float fl, const Circulo& p2){
         std::cout << "Perro - Rectangulo - Circulo" << std::endl;
     }
 
-    static void implementation(Gato* t, int k, Triangulo* t2, float fl, Elipse& p3){
+    static void implementation(Gato* t, int k, Triangulo* t2, float fl, const Elipse& p3){
         std::cout << "Gato - Triangulo - Elipse" << std::endl;
     }
 
@@ -53,7 +53,7 @@ struct intersect{
 
 using intersect_table = table_omm<intersect,intersect_template,WithTypes<Circulo,Perro,Rectangulo,Gato,Triangulo,Elipse>>;
 
-void intersect(Animal* f, int k, Figura* t, float fl, Figura& a2){
+void intersect(Animal* f, int k, Figura* t, float fl, const Figura& a2){
     intersect_table::call(f,k,t,fl,a2);
 }
 

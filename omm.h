@@ -6,32 +6,86 @@
 #include <algorithm>
 
 
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//--------------------------------- Table omm -------------------------------------
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//                              vbsign_to_bsign  -------------> BS = tlist<R,BArgs> ---------------------
-//                                              |                                                        |
-//                                              |                                    *create_table_omm*  |
-//                                              |                                    make_function_cell  |
-//                        ftype_to_sign         |                                                        v
-//funtion_type = R(VBArgs...) ---> VBS = tlist<R,VBArgs...> *--->* DSCOMB = tlist<R,DArgs...> *--->* table_omm  <----- type with implementations
-//                                         |                                *
-//                                         | *vbsign_to_dsign_combinations* ^
-//                    get_base_core_types  |               vbsign_to_dsign  |
-//                                         |                                |
-//                                         v                                *
-//                                  BCL = tlist<BCArgs...>      Combination Derived Type
-//                                         |                      ^         *
-//                                         |  *make_derived_combinations*   ^
-//                                         |        ------------/           |
-//                         create_type_id  |       /  indices_to_types      |
-//                                         v      /                         *
-//                              DCL ----> TID    ------------------>     Indices
-//                                                 *make_indices*
+//This library allows to the programmer to use open multi-methods.
+//I was inspired by Jean-Louis Leroy's library named yomm2.
+//
+//In the first lines are defined some metatypes like int_constant, collection and tlist.
+//I use them to make easier the metaprogramming. At the end, using templates is functional
+//programming, but a tedious and annoying one.
+//
+//The goal in this library is to create the omm table, an array containing function pointers
+//that points to the method implementations. In order to achieve this, several metafunctions
+//which operates with differents metatypes are needed. The diagram below shows the way the
+//omm is created.
+//
+//    How to create the omm table:
+//
+//
+//
+//            vbsign_to_bsign  -------------------------------> BS = tlist<R,BArgs> ---------------------
+//                            |                                                                          |
+//                            |                                                      *create_table_omm*  |
+//                            |                                                      make_function_cell  |
+//           ftype_to_sign    |                                                                          v
+//    ftype ---------------> VBS  *---------------------------------->* DSCOMB  *----------------->* table_omm  <----- F
+//                            |                                           *
+//                            |            *vbsign_to_dsign_combinations* ^
+//       get_base_core_types  |                          vbsign_to_dsign  |
+//                            |                                           |
+//                            v                                           *
+//                           BCL                               Combination Derived Type
+//                            |                                 ^         *
+//                            |     *make_derived_combinations*/          ^
+//                            |        -----------------------/           |
+//            create_type_id  |       /  indices_to_types                 |
+//                            v      /                                    *
+//               DCL ------> TID  ---------------------------------->  Indices
+//                                           *make_indices*
+//
+//
+//
+//    Where:
+//        - ftype: It is the function type template. In it, the virtual types are specified.
+//                 * Example: void(Virtual<Base1*>,int,SomeClass,Virtual<const Base2&>)
+//                 + Actually, Virtual is turned into virtual_type.
+//
+//        - DCL (Derived Core List): It is a list containing the classes which participate in the multiple dispatch.
+//                 * Example: tlist<Derived1,Derived2,Derived3>
+//
+//        - F: It is an struct containing all the multi-method implementations. They have to be static function
+//             named implementation.
+//
+//        - VBS (Virtual Base Signature): It is a tlist containing the type from ftype.
+//                 * Example: tlist<void,virtual_type<Base1*>,int,SomeClass,virtual_type<const Base2&>>
+//
+//        - BCL (Base Core List): It is a list containing all the virtual classes from VBS, in their
+//                                core form, i.e. without cv qualifiers, references or pointers.
+//                 * Example: tlist<Base1,Base2>
+//
+//        - BS (Base Signature): It is a list containing the types from VBS without the virtual_type wrappers.
+//                 * Example: tlist<void,Base1*,int,SomeClass,const Base2&>
+//
+//        - TID: It is a list of lists. Each list has as first element a base core type, and the rest of the elements
+//               are their derived classes that appears in DCL.
+//                 * Example: tlist<tlist<Base1,Derived1>,tlist<Base2,Derived2,Derived3>>
+//
+//        - Indices: It is a list containing all the possible tuples of indices of the omm table. Each tuple has the same length
+//               as TID, and contains numbers from 0 to the amount, minus 1, of derived types are in each list from TID.
+//                 * Example: tlist<tlist<0,0>,tlist<0,1>>
+//                 + Actually, each number is a int_contant type.
+//
+//        - Combination Derived Type: It is a list containing all the combinations of derived types that can be formed according
+//               to their position in TID and to the list of Indices.
+//                 * Example: tlist<tlist<Derived1,Derived2>,tlist<Derived1,Derived3>>
+//
+//        - DSCOMB (Derived Signature Combinations): It is a list containing all the possible signatures that can be formed accordingly
+//               to the Combination Derived Type list. Actually, the VBS is used to turn the virtual_types into a derived type.
+//                 * Example: tlist<tlist<void,Derived1*,int,SomeClass,const Derived2&>,tlist<void,Derived1*,int,SomeClass,const Derived3&>>
+//
+//        - table_omm: It is an array of pointers to the implementations.
+
+
+
 
 
 //---------------------------------------------------------------------------------

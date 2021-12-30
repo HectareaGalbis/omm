@@ -15,7 +15,7 @@ int main(){
     Figura& f1 = c;
     Figura& f2 = r;
     Figura& f3 = t;
-    Figura& f4 = e;
+    const Figura& f4 = e;
 
     Perro p;
     Gato g;
