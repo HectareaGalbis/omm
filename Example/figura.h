@@ -29,32 +29,32 @@ struct Perro : Animal{};
 struct Gato : Animal{};
 
 
-using intersect_template = void(Virtual<Animal*>,int,Virtual<Figura&>,Virtual<Animal&>,Virtual<Figura*>,float,Virtual<Animal&>);
+using intersect_template = void(Virtual<Animal*>,int,Virtual<Figura*>,float,Virtual<Figura&>);
 
 struct intersect{
 
-    static void call(Perro* c, int k, Rectangulo& r, Perro& p, Rectangulo* r2, float fl, Perro& p2){
-        std::cout << "Perro - " << k << " - Rectangulo - Perro - Rectangulo - Perro " << fl << std::endl;
+    static void implementation(Perro* c, int k,Rectangulo* r2, float fl, Circulo& p2){
+        std::cout << "Perro - Rectangulo - Circulo" << std::endl;
     }
 
-    static void call(Gato* t, int k, Circulo& c, Gato& p, Triangulo* t2, float fl, Perro& p3){
-        std::cout << "Gato - " << k << " - Circulo - Gato - Triangulo - Perro " << fl << std::endl;
+    static void implementation(Gato* t, int k, Triangulo* t2, float fl, Elipse& p3){
+        std::cout << "Gato - Triangulo - Elipse" << std::endl;
     }
 
-    static void call(Gato* t, int k, Elipse& c, Gato& p, Triangulo* t2, float fl, Perro& p3){
-        std::cout << "Gato - " << k << " - Elipse - Gato - Triangulo - Perro " << fl << std::endl;
-    }
-
-    static void call(Perro* t, int k, Triangulo& t2, Perro& p, Rectangulo* r, float fl, Gato& g2){
-        std::cout << "Perro - " << k << " - Triangulo - Perro - Rectangulo - Gato " << fl << std::endl;
-    }
+//    static void implementation(Gato* t, int k, Elipse& c, Gato& p, Triangulo* t2, float fl, Perro& p3){
+//        std::cout << "Gato - " << k << " - Elipse - Gato - Triangulo - Perro " << fl << std::endl;
+//    }
+//
+//    static void implementation(Perro* t, int k, Triangulo& t2, Perro& p, Rectangulo* r, float fl, Gato& g2){
+//        std::cout << "Perro - " << k << " - Triangulo - Perro - Rectangulo - Gato " << fl << std::endl;
+//    }
 
 };
 
 using intersect_table = table_omm<intersect,intersect_template,WithTypes<Circulo,Perro,Rectangulo,Gato,Triangulo,Elipse>>;
 
-void intersect(Animal* f, int k, Figura& g, Animal& a, Figura* t, float fl, Animal& a2){
-    intersect_table::call(f,k,g,a,t,fl,a2);
+void intersect(Animal* f, int k, Figura* t, float fl, Figura& a2){
+    intersect_table::call(f,k,t,fl,a2);
 }
 
 

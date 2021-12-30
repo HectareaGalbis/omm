@@ -23,10 +23,10 @@ int main(){
     Animal& a1 = p;
     Animal& a2 = g;
 
-    intersect(&a1,1000,f2,a1,&f2,3.0,a1);
-    intersect(&a2,500,f1,a2,&f3,5.0,a1);
-    intersect(&a2,500,f4,a2,&f3,5.0,a1);
-    intersect(&a1,250,f3,a1,&f2,7.0,a2);
+    intersect(&a1,500,&f2,5.0,f1);
+    intersect(&a2,1000,&f3,3.0,f4);
+//    intersect(&a2,500,f4,a2,&f3,5.0,a1);
+//    intersect(&a1,250,f3,a1,&f2,7.0,a2);
 
 
     return 0;

@@ -4,6 +4,7 @@
 #include <typeinfo>
 #include <type_traits>
 #include <algorithm>
+#include <iostream>
 
 //---------------------------------------------------------------------------------
 //---------------------------------- Data types -----------------------------------
@@ -443,7 +444,7 @@ using apply_t = typename apply<P,S...>::type;
 template<template<typename...> typename P>
 struct apply_c{
     template<typename... S>
-    using type = apply_t<P,S...>;
+    using type = apply<P,S...>;
 };
 
 //---------------------------------------------------------------------------------
@@ -592,28 +593,28 @@ struct slice_type_aux<std::true_type,IsVol,IsLval,IsRval,IsPtr,N,S>{
 template<typename IsLval, typename IsRval, typename IsPtr, typename N, typename S>
 struct slice_type_aux<std::false_type,std::true_type,IsLval,IsRval,IsPtr,N,S>{
     using newN = std::remove_volatile_t<N>;
-    using type = std::add_const_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
+    using type = std::add_volatile_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
                                                           std::is_rvalue_reference_t<newN>,std::is_pointer_t<newN>,newN,S>::type>;
 };
 
 template<typename IsRval, typename IsPtr, typename N, typename S>
 struct slice_type_aux<std::false_type,std::false_type,std::true_type,IsRval,IsPtr,N,S>{
     using newN = std::remove_reference_t<N>;
-    using type = std::add_const_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
+    using type = std::add_lvalue_reference_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
                                                           std::is_rvalue_reference_t<newN>,std::is_pointer_t<newN>,newN,S>::type>;
 };
 
 template<typename IsPtr, typename N, typename S>
 struct slice_type_aux<std::false_type,std::false_type,std::false_type,std::true_type,IsPtr,N,S>{
     using newN = std::remove_reference_t<N>;
-    using type = std::add_const_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
+    using type = std::add_rvalue_reference_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
                                                           std::is_rvalue_reference_t<newN>,std::is_pointer_t<newN>,newN,S>::type>;
 };
 
 template<typename N, typename S>
 struct slice_type_aux<std::false_type,std::false_type,std::false_type,std::false_type,std::true_type,N,S>{
     using newN = std::remove_pointer_t<N>;
-    using type = std::add_const_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
+    using type = std::add_pointer_t<typename slice_type_aux<std::is_const_t<newN>,std::is_volatile_t<newN>,std::is_lvalue_reference_t<newN>,
                                                           std::is_rvalue_reference_t<newN>,std::is_pointer_t<newN>,newN,S>::type>;
 };
 
@@ -795,13 +796,18 @@ struct position_derived_runtime_aux{
     }
 };
 
+template<typename... T>
+struct Print{};
+
 template<typename D, typename S>
 struct position_derived_runtime_aux<cons<D,S>>{
     static int call(const std::type_info& info){
+        std::cout << "1: " << info.name() << " 2: " << typeid(D).name() << std::endl;
         if (info == typeid(D))
             return 0;
         else
             return 1+position_derived_runtime_aux<S>::call(info);
+
     }
 };
 
@@ -887,7 +893,7 @@ template<typename T, typename S, typename DL>
 struct vbsign_to_dsign<cons<virtual_type<T>,S>,DL> : cons<slice_type_t<T,car_t<DL>>,typename vbsign_to_dsign<S,cdr_t<DL>>::type>{};
 
 template<typename T, typename S, typename DL>
-struct vbsign_to_dsign<cons<T,S>,DL> : cons<T,vbsign_to_dsign<S,DL>>{};
+struct vbsign_to_dsign<cons<T,S>,DL> : cons<T,typename vbsign_to_dsign<S,DL>::type>{};
 
 template<typename VBS, typename DL>
 using vbsign_to_dsign_t = typename vbsign_to_dsign<VBS,DL>::type;
@@ -1000,23 +1006,23 @@ static constexpr bool has_implementation_v = has_implementation<T,CB,CD>::value;
 *   La signatura de la funcion value y la del casting son pasados mediante una coleccion
 */
 template<typename HasImplementation, typename F, typename BC, typename DC>
-struct make_function_cell_aux{
+struct make_function_cell_aux{};
+
+template<typename F, typename R, typename... Bargs, typename... Dargs>
+struct make_function_cell_aux<std::false_type,F,collection<R,Bargs...>,collection<R,Dargs...>>{
     static constexpr std::nullptr_t value = nullptr;
 };
 
 template<typename F, typename R, typename... Bargs, typename... Dargs>
 struct make_function_cell_aux<std::true_type,F,collection<R,Bargs...>,collection<R,Dargs...>>{
     static R value(Bargs... args){
-        return F::call(static_cast<Dargs>(args)...);
+        return F::implementation(static_cast<Dargs>(args)...);
     }
 };
 
 template<typename F, typename BS, typename DS>
 struct make_function_cell : make_function_cell_aux<has_implementation_t<F,tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>,
                                                    F,tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>{};
-
-template<typename F, typename BC, typename DC>
-auto make_function_cell_v = make_function_cell<F,BC,DC>::value;
 
 //---------------------------------------------------------------------------------
 //-------------------------------- Combinations -----------------------------------
@@ -1137,16 +1143,41 @@ struct make_derived_combinations : mapcar<indices_to_types_c<Tid>::template type
 template<typename Tid, typename IND>
 using make_derived_combinations_t = typename make_derived_combinations<Tid,IND>::type;
 
+//---------------------------------------------------------------------------------
+
+/**
+*   Devuelve el typeid de la clase hija subyacente
+*/
+template<typename IsPtr, typename A>
+struct get_type_id_aux{
+    static const std::type_info& call(A&& a){
+        return typeid(a);
+    }
+};
+
+template<typename A>
+struct get_type_id_aux<std::true_type,A>{
+    static const std::type_info& call(A&& a){
+        return typeid(*a);
+    }
+};
+
+template<typename A>
+struct get_type_id{
+    static const std::type_info& call(A&& a){
+        return get_type_id_aux<std::is_pointer_t<std::remove_reference_t<A>>,A>::call(std::forward<A>(a));
+    }
+};
 
 //---------------------------------------------------------------------------------
 
 /**
 *   Devuelve el indice del puntero a la funcion que se debe llamar a partir de los argumentos
 */
-template<typename Tid, typename BS, typename... AS>
+template<typename Tid, typename VBS, typename... AS>
 struct get_index_aux{
     static constexpr int current_multiplier = 1;
-    static int call(AS... as){
+    static int call(AS&&... as){
         return 0;
     }
 };
@@ -1154,7 +1185,7 @@ struct get_index_aux{
 template<typename Tid, typename B, typename BS, typename A, typename... AS>
 struct get_index_aux<Tid,cons<B,BS>,A,AS...>{
     static constexpr int current_multiplier = get_index_aux<Tid,BS,AS...>::current_multiplier;
-    static int call(A a, AS... as){
+    static int call(A&& a, AS&&... as){
         return get_index_aux<Tid,BS,AS...>::call(std::forward<AS>(as)...);
     }
 };
@@ -1162,16 +1193,16 @@ struct get_index_aux<Tid,cons<B,BS>,A,AS...>{
 template<typename T, typename TS, typename B, typename BS, typename A, typename... AS>
 struct get_index_aux<cons<T,TS>,cons<virtual_type<B>,BS>,A,AS...>{
     static constexpr int current_multiplier = get_index_aux<TS,BS,AS...>::current_multiplier*length_of_derived_v<T>;
-    static int call(A a, AS... as){
+    static int call(A&& a, AS&&... as){
         return get_index_aux<TS,BS,AS...>::call(std::forward<AS>(as)...)
-               + position_derived_runtime<T>(typeid(std::forward<A>(a)))*get_index_aux<TS,BS,AS...>::current_multiplier;
+               + position_derived_runtime<T>::call(get_type_id<A>::call(std::forward<A>(a)))*get_index_aux<TS,BS,AS...>::current_multiplier;
     }
 };
 
-template<typename Tid, typename BS, typename... AS>
+template<typename Tid, typename VBS, typename... AS>
 struct get_index{
-    static int call(AS... as){
-        return get_index_aux<Tid,BS,AS...>::call(std::forward<AS>(as)...);
+    static int call(AS&&... as){
+        return get_index_aux<Tid,cdr_t<VBS>,AS...>::call(std::forward<AS>(as)...);
     }
 };
 
@@ -1187,7 +1218,7 @@ struct create_table_omm_aux{};
 
 template<typename F, typename BS, typename... DS>
 struct create_table_omm_aux<F,BS,collection<DS...>>{
-    static constexpr auto value = {make_function_cell_v<F,BS,DS>...};
+    static constexpr std::add_pointer_t<signature_to_function_type_t<BS>> value[] = {make_function_cell<F,BS,DS>::value...};
 };
 
 template<typename F, typename BS, typename DSComb>
@@ -1209,7 +1240,7 @@ static constexpr auto create_table_omm_v = create_table_omm<F,BS,DSComb>::value;
 //                                              |                                    *create_table_omm*  |
 //                                              |                                    make_function_cell  |
 //                        ftype_to_sign         |                                                        v
-//funtion_type = R(VBArgs...) ---> VBS = tlist<R,VBArgs...> *--->* DSCOMB = tlist<R,DArgs...> *--->* function_cell  <----- type with implementations
+//funtion_type = R(VBArgs...) ---> VBS = tlist<R,VBArgs...> *--->* DSCOMB = tlist<R,DArgs...> *--->* table_omm  <----- type with implementations
 //                                         |                                *
 //                                         | *vbsign_to_dsign_combinations* ^
 //                    get_base_core_types  |               vbsign_to_dsign  |
@@ -1224,6 +1255,8 @@ static constexpr auto create_table_omm_v = create_table_omm<F,BS,DSComb>::value;
 //                              DCL ----> TID    ------------------>     Indices
 //                                                 *make_indices*
 
+
+
 /**
 *
 */
@@ -1237,11 +1270,12 @@ struct table_omm{
     using IND                   = make_indices_t<TID>;
     using DCOMB                 = make_derived_combinations_t<TID,IND>;
     using DSCOMB                = vbsign_to_dsign_combinations_t<VBS,DCOMB>;
-    static constexpr auto table = create_table_omm_v<BS,DSCOMB>;
+    static constexpr auto table = create_table_omm_v<F,BS,DSCOMB>;
 
     template<typename... AS>
     static auto call(AS&&... as){
-        return table[get_index<TID,BS>::call(std::forward<AS>(as)...)](std::forward<AS>(as)...);
+        std::cout << get_index<TID,VBS,AS...>::call(std::forward<AS>(as)...) << std::endl;
+        return table[get_index<TID,VBS,AS...>::call(std::forward<AS>(as)...)](std::forward<AS>(as)...);
     }
 };
 
