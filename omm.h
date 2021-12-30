@@ -87,13 +87,12 @@
 
 
 
-
 //---------------------------------------------------------------------------------
-//---------------------------------- Data types -----------------------------------
+//-------------------------------- INT_CONSTANT -----------------------------------
 //---------------------------------------------------------------------------------
 
 /**
-*   Tipo de dato que representa a un entero
+*   Represents an integer.
 */
 template<int k>
 using int_constant = std::integral_constant<int,k>;
@@ -101,7 +100,7 @@ using int_constant = std::integral_constant<int,k>;
 //---------------------------------------------------------------------------------
 
 /**
-*   Los numeros 0 y 1
+*   The numbers 0 and 1.
 */
 using zero = int_constant<0>;
 using one = int_constant<1>;
@@ -109,7 +108,8 @@ using one = int_constant<1>;
 //---------------------------------------------------------------------------------
 
 /**
-*   Realiza la suma de varios numeros
+*   Performs the sum of several numbers.
+*    - TS... : Each number is an int_constant type.
 */
 template<typename... TS>
 struct add : zero{};
@@ -126,7 +126,8 @@ static constexpr int add_v = add<TS...>::value;
 //---------------------------------------------------------------------------------
 
 /**
-*   Aumenta en 1 el valor de un entero
+*   Add 1 to an int_constant.
+*    - T : The int_constant to add 1.
 */
 template<typename T>
 using add1 = add<one,T>;
@@ -140,7 +141,8 @@ static constexpr int add1_v = add1<T>::value;
 //---------------------------------------------------------------------------------
 
 /**
-*   Disminuye en 1 el valor de un entero
+*   Subtract 1 to an int_constant.
+*    - T : The int_constant to subtract 1.
 */
 template<typename T>
 using sub1 = add<int_constant<-1>,T>;
@@ -152,10 +154,11 @@ template<typename T>
 static constexpr int sub1_v = sub1<T>::value;
 
 //---------------------------------------------------------------------------------
+//--------------------------------- COLLECTION ------------------------------------
 //---------------------------------------------------------------------------------
 
 /**
-*   Tipo que representa una coleccion de tipos
+*   Represents a collection of types. It is used to perform variadic template unpacking.
 */
 template<typename... S>
 struct collection{
@@ -165,7 +168,9 @@ struct collection{
 //---------------------------------------------------------------------------------
 
 /**
-*   Ejecuta una metafuncion usando como argumentos los tipos de una coleccion
+*   Applies a metafunction receiving all the types contained in a collection
+*    - P : The metafunction to be applied.
+*    - C : The collection containint the arguments of P.
 */
 template<template<typename...> typename P, typename C>
 struct apply_collection{};
@@ -177,10 +182,11 @@ template<template<typename...> typename P, typename C>
 using apply_collection_t = typename apply_collection<P,C>::type;
 
 //---------------------------------------------------------------------------------
+//------------------------------------ TLIST --------------------------------------
 //---------------------------------------------------------------------------------
 
 /**
-*   Tipo que representa una lista vacia
+*   Represents an empty list.
 */
 struct nil{
     using type = nil;
@@ -189,7 +195,10 @@ struct nil{
 //---------------------------------------------------------------------------------
 
 /**
-*   Tipo que representa una estructura cons
+*   Represents a cons cell. A tlist is defined as a cons cell that its rigth cell
+*   is another list (empty or not).
+*    - T : The left cell.
+*    - S : The right cell.
 */
 template<typename T, typename S>
 struct cons{
@@ -205,7 +214,8 @@ struct cons_c{
 //---------------------------------------------------------------------------------
 
 /**
-*   Funcion de ayuda para generar una lista de elementos
+*   Helper function to create tlist.
+*    - TS... : The types to be in the created list.
 */
 template<typename... TS>
 struct tlist : nil{};
@@ -219,18 +229,8 @@ using tlist_t = typename tlist<TS...>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Transforma una coleccion en una lista
-*/
-template<typename C>
-struct collection_to_tlist{};
-
-template<typename... S>
-struct collection_to_tlist<collection<S...>> : tlist<S...>{};
-
-//---------------------------------------------------------------------------------
-
-/**
-*   Transforma una lista en una coleccion
+*   Transforms a tlist into a collection.
+*    - T : The list to turn into a collection.
 */
 template<typename L, typename C>
 struct tlist_to_collection_aux{};
@@ -250,7 +250,8 @@ using tlist_to_collection_t = typename tlist_to_collection<T>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Devuelve el primer elemento de una lista
+*   Returns the left cell of a cons type.
+*    - L : The cons cell to retrive its left cell.
 */
 template<typename L>
 struct car{};
@@ -269,7 +270,8 @@ using car_t = typename car<L>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Elimina el primer elemento de una lista
+*   Returns the right cell of a cons cell.
+*    - L : The cons cell to retrieve its right cell.
 */
 template<typename L>
 struct cdr{};
@@ -288,7 +290,8 @@ using cdr_t = typename cdr<L>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Concatena dos listas
+*   Concatenates several lists.
+*    - S... : The lists to be concatenated.
 */
 template<typename... S>
 struct append : nil{};
@@ -299,13 +302,14 @@ struct append<nil,S...> : append<S...>{};
 template<typename T, typename R, typename... S>
 struct append<cons<T,R>,S...> : cons<T,typename append<R,S...>::type>{};
 
-template<typename L, typename S>
-using append_t = typename append<L,S>::type;
+template<typename... S>
+using append_t = typename append<S...>::type;
 
 //---------------------------------------------------------------------------------
 
 /**
-*   Devuelve el numero de elementos de una lista
+*   Returns the length of a list, i.e. the number of its elements.
+*    - L : The list to retrieve its length.
 */
 template<typename L>
 struct length{};
@@ -325,7 +329,9 @@ static constexpr int length_v = length<L>::value;
 //---------------------------------------------------------------------------------
 
 /**
-*   Retorna el elemento que se encuentra en la posicion k-esima de una lista
+*   Returns the nth-element of a list.
+*    - L : The list to retrieve the element at the nth position.
+*    - K : The position where the element to retrieve is.
 */
 template<typename L, typename K>
 struct nth_aux : nth_aux<cdr_t<L>,sub1_t<K>>{};
@@ -342,7 +348,9 @@ using nth_t = typename nth<L,K>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Ejecuta una metafuncion sobre cada elemento de la lista
+*   Applies a metafunction over all the elements of a list and retrurns the list with the results.
+*    - P : The metafunction to be applied to every element.
+*    - L : The list whose elements are passed P.
 */
 template<template<typename> typename P, typename L>
 struct mapcar{};
@@ -359,7 +367,10 @@ using mapcar_t = typename mapcar<P,L>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Realiza un fold de derecha a izquierda
+*   Performs a fold action from the right to the left of a list.
+*    - P : The metafunction used in the fold.
+*    - I : The initial value passed to P.
+*    - L : The list to be folded.
 */
 template<template<typename,typename> typename P, typename I, typename L>
 struct reduce_from_end : P<typename reduce_from_end<P,I,cdr_t<L>>::type,car_t<L>>{};
@@ -373,7 +384,10 @@ using reduce_from_end_t = typename reduce_from_end<P,I,L>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Realiza un cons si B es true_type
+*   Performs a cons creation if B is true_type.
+*    - B : A bool_constant that indicates whether to perform the cons or not.
+*    - T : The type to be left consed with L.
+*    - L : The type to be right consed with T.
 */
 template<typename B, typename T, typename L>
 struct cons_if : cons<T,L>{};
@@ -387,7 +401,9 @@ using cons_if_t = typename cons_if<B,T,L>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Elimina los elementos de la lista que no cumplan la condicion
+*   Removes the elements of a list that not verifies a condition.
+*    - P : P is evaluated once per element. If the result is false_type, the element is removed from the list.
+*    - L : The list whose elements could be removed.
 */
 template<template<typename> typename P, typename L>
 struct remove_if_not{};
@@ -404,7 +420,10 @@ using remove_if_not_t = typename remove_if_not<P,L>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Ejecuta una metafuncion usando como argumentos los que se pasen, ademas de usar los elementos de la lista situada al final.
+*   Performs a metafunction using as arguments the types that are passed to apply, including all
+*   the elements contained in the list that should be in last place.
+*    - P : The metafunction to be performed.
+*    - S... : The arguments of P. The last arguments to be passed to P should be at a list being last argument of apply.
 */
 template<typename... T>
 struct apply_aux : nil{};
@@ -430,7 +449,8 @@ struct apply_c{
 //---------------------------------------------------------------------------------
 
 /**
-*   Retorna false_type si algun elemento de la lista es false_type
+*   Returns false_type if some element is false_type. In other case, it returns true_type.
+*    - TS... : A bunch of types being true_type or false_type.
 */
 template<typename... TS>
 struct or_type : std::false_type{};
@@ -447,8 +467,10 @@ using or_type_t = typename or_type<TS...>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Retorna una lista donde cada elemento es una lista que contiene dos elementos que estaban
-*   en la misma posicion en las listas iniciales.
+*   Returns a list where each element is a list that contains two elements from the initial lists
+*   as soon as both elements has the same index.
+*    - L : A tlist to be zipped.
+*    - S : A tlist to be zipped.
 */
 template<typename L, typename S>
 struct zip : nil{};
@@ -462,7 +484,8 @@ using zip_t = typename zip<L,S>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Invierte el orden de los argumentos de una metafuncion
+*   Reverses the order of the arguments a metafunction receives.
+*    - P : The metafunction whose arguments are going to be flipped.
 */
 template<template<typename,typename> typename P>
 struct flip{
