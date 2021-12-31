@@ -57,34 +57,40 @@ Como ejemplo usaremos las matrices. Para cada método y sus especializaciones ne
 ### Ingrediente 1, la plantilla
 La plantilla es el tipo de función que tenemos pensado especializar. En este caso queremos sumar dos matrices y devolver el resultado, por lo que el tipo de función será la siguiente:
 ```C++
-using suma_template = Matriz*(Virtual<Matriz*>,Virtual<Matriz*>);
+using suma_template = WithSignature<Matriz*(Virtual<Matriz*>,Virtual<Matriz*>)>;
 ```
-Observa que usamos `Virtual` para indicar que cada parámetro, en este caso un puntero a matriz, se va a sustituir en cada especialización por la clase hija correspondiente.
+Observa que usamos `Virtual` para indicar que cada parámetro, en este caso un puntero a matriz, se va a sustituir en cada especialización por la clase hija correspondiente. Además, debemos usar WithSignature para terminar de preparar esta información.
 
 ### Ingrediente 2, las especializaciones dentro de una clase o struct
-De alguna forma tenemos que indicar a `table_omm` donde están las funciones que debe usar. Para ello le pasaremos una clase que contenga cada especialización. La visibilidad de cada método debe ser pública para que `table_omm` pueda acceder, por lo que recomiendo usar `struct` en lugar de `class`. Asegúrate también de que cada especialización tenga el modificador `static` para poder acceder a ellas sin tener que crear ningún objeto.
+De alguna forma tenemos que indicar a `table_omm` donde están las funciones que debe usar. Para ello le pasaremos una clase que contenga cada especialización. La visibilidad de cada método debe ser pública para que `table_omm` pueda acceder, por lo que recomiendo usar `struct` en lugar de `class`. Asegúrate también de que cada especialización tenga el modificador `static` para poder acceder a ellas sin tener que crear ningún objeto. Por último, el nombre las especializaciones debe llamarse implementation.
 ```C++
 struct suma_matrices{ // <-- Asegúrate de tener visibilidad pública, por eso recomiendo usar struct
 
-  static Matriz* suma(Diagonal* d1, Diagonal* d2){    // <-- Recuerda usar static en cada especialización
+  static Matriz* implementation(Diagonal* d1, Diagonal* d2){    // <-- Recuerda usar static en cada especialización
     // Implementacion de la suma de dos matrices ortogonales
   }
   
-  static Matriz* suma(Ortogonal* o, Diagonal* d){     // <-- Recuerda usar static en cada especialización
+  static Matriz* implementation(Ortogonal* o, Diagonal* d){     // <-- Recuerda usar static en cada especialización
     // Implementacion de la suma de una matriz ortogonal y una matriz diagonal
   }
   
-  static Matriz* suma(Invertible* i, Ortogonal* o){   // <-- Recuerda usar static en cada especialización
+  static Matriz* implementation(Invertible* i, Ortogonal* o){   // <-- Recuerda usar static en cada especialización
     // Implementacion de la suma de una matriz invertible y una matriz ortogonal 
   }
   
   //...
   
 }
+
+using struct_implementations = WithImplementations<suma_matrices>;
 ```
+Observa que utilizamos `WithImplementations` para indicar el struct donde están las implementaciones.
 
 ### Ingrediente 3, las clases hijas que especializan el método
 En este caso estamos usando 3 clases hijas de Matriz, que son `Diagonal`,`Ortogonal` e `Invertible`. 
+```
+using clases_hijas = WithDerivedTypes<Diagonal,Ortogonal,Invertible>;
+```
 
 ### Cocinando la tabla
 Usamos los 3 ingredientes anteriores en el siguiente orden:
@@ -92,7 +98,7 @@ Usamos los 3 ingredientes anteriores en el siguiente orden:
 2. La plantilla
 3. Las clases hijas
 ```C++
-using suma_table = table_omm<suma_matrices,suma_template,Diagonal,Ortogonal,Invertible>;
+using suma_table = table_omm<struct_implementations,suma_template,clases_hijas>;
 ```
 
 ### Un último paso, acceder a la tabla
