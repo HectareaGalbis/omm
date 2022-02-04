@@ -10,7 +10,7 @@
  I was inspired by Jean-Louis Leroy's library named yomm2.
 
  In the first lines are defined some metatypes like int_constant, collection and tlist.
- I use them to make easier the metaprogramming. At the end, using templates is functional
+ I use them to make easier the metaprogramming. After all, using templates is functional
  programming, but tedious and annoying.
 
  The goal in this library is to create the omm table, an array containing function pointers
