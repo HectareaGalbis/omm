@@ -982,8 +982,10 @@ static constexpr bool has_implementation_v = has_implementation<F,CB,CD>::value;
 //---------------------------------------------------------------------------------
 
 /**
-*   Generates a function pointer that calls the specific method after doing a cast. 
-*   The value function and casting function signature are passed through a collection.
+*   Generates a function pointer that calls a specific implementation method after doing a cast. 
+*    - F: The struct containing all the implementations.
+*    - BS: A tlist containing the signature of the returned function pointer.
+*    - DS: A tlist containing the signature of the specific implementation method.
 */
 template<typename HasImplementation, typename F, typename BC, typename DC>
 struct make_function_cell_aux{};
