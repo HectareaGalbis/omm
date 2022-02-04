@@ -1045,9 +1045,6 @@ struct position_derived_runtime_aux{
     }
 };
 
-template<typename... T>
-struct Print{};
-
 template<typename D, typename S>
 struct position_derived_runtime_aux<cons<D,S>>{
     static int call(const std::type_info& info){
