@@ -6,7 +6,7 @@
 #include <algorithm>
 
 /**
- This library allows to the programmer to use open multi-methods.
+ This library allows the programmer to use open multi-methods.
  I was inspired by Jean-Louis Leroy's library named yomm2.
 
  In the first lines are defined some metatypes like int_constant, collection and tlist.
