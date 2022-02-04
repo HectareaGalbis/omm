@@ -506,7 +506,7 @@ using or_type_t = typename or_type<TS...>::type;
 
 /**
 *   Returns a list where each element is a list that contains two elements from the initial lists
-*   as soon as both elements has the same index.
+*   as long as both elements has the same index.
 *    - L : A tlist to be zipped.
 *    - S : A tlist to be zipped.
 */
