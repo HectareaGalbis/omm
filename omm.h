@@ -487,7 +487,7 @@ struct apply_c{
 //---------------------------------------------------------------------------------
 
 /**
-*   Returns false_type if some element is false_type. In other case, it returns true_type.
+*   Returns true_type if some element is true_type. In other case, it returns false_type.
 *    - TS... : A bunch of types being true_type or false_type.
 */
 template<typename... TS>
