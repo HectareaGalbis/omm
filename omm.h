@@ -16,7 +16,7 @@
  The goal in this library is to create the omm table, an array containing function pointers
  that points to the method implementations. In order to achieve this, several metafunctions
  which operates with differents metatypes are needed. The diagram below shows the way the
- omm tableis created.
+ omm table is created.
 
     How to create the omm table:
 
