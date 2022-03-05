@@ -1,6 +1,10 @@
 # omm (Open Multi-Methods)
 This project is an unique file which offers open multi-methods. I was inspired by the library made by Jean-Louis Leroy named [yomm2](https://github.com/jll63/yomm2).
 
+## Index
+
+* [Why omm?](https://github.com/Hectarea1996/omm#why-omm)
+
 ## Why omm?
 The best features of omm are:
 * It has no dependencies. You only need a C++17 compiler.
