@@ -6,17 +6,17 @@
 #include <algorithm>
 
 /**
- This library allows to the programmer to use open multi-methods.
+ This library allows the programmer to use open multi-methods.
  I was inspired by Jean-Louis Leroy's library named yomm2.
 
  In the first lines are defined some metatypes like int_constant, collection and tlist.
- I use them to make easier the metaprogramming. At the end, using templates is functional
+ I use them to make easier the metaprogramming. After all, using templates is functional
  programming, but tedious and annoying.
 
  The goal in this library is to create the omm table, an array containing function pointers
  that points to the method implementations. In order to achieve this, several metafunctions
  which operates with differents metatypes are needed. The diagram below shows the way the
- omm tableis created.
+ omm table is created.
 
     How to create the omm table:
 
@@ -487,7 +487,7 @@ struct apply_c{
 //---------------------------------------------------------------------------------
 
 /**
-*   Returns false_type if some element is false_type. In other case, it returns true_type.
+*   Returns true_type if some element is true_type. In other case, it returns false_type.
 *    - TS... : A bunch of types being true_type or false_type.
 */
 template<typename... TS>
@@ -506,7 +506,7 @@ using or_type_t = typename or_type<TS...>::type;
 
 /**
 *   Returns a list where each element is a list that contains two elements from the initial lists
-*   as soon as both elements has the same index.
+*   as long as both elements has the same index.
 *    - L : A tlist to be zipped.
 *    - S : A tlist to be zipped.
 */
@@ -982,8 +982,10 @@ static constexpr bool has_implementation_v = has_implementation<F,CB,CD>::value;
 //---------------------------------------------------------------------------------
 
 /**
-*   Genera un puntero a una funcion que llama al metodo correspondiente tras realizar un casting.
-*   La signatura de la funcion value y la del casting son pasados mediante una coleccion
+*   Generates a function pointer that calls a specific implementation method after doing a cast. 
+*    - F: The struct containing all the implementations.
+*    - BS: A tlist containing the signature of the returned function pointer.
+*    - DS: A tlist containing the signature of the specific implementation method.
 */
 template<typename HasImplementation, typename F, typename BC, typename DC>
 struct make_function_cell_aux{};
@@ -1042,9 +1044,6 @@ struct position_derived_runtime_aux{
         return 0;
     }
 };
-
-template<typename... T>
-struct Print{};
 
 template<typename D, typename S>
 struct position_derived_runtime_aux<cons<D,S>>{
