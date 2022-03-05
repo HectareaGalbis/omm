@@ -4,6 +4,7 @@ This project is an unique file which offers open multi-methods. I was inspired b
 ## Index
 
 * [Why omm?](https://github.com/Hectarea1996/omm#why-omm)
+* [Installation](https://github.com/Hectarea1996/omm#installation)
 * [A simple tutorial](https://github.com/Hectarea1996/omm#a-simple-tutorial)
 * [Template open multi-methods](https://github.com/Hectarea1996/omm#template-open-multi-methods)
 
@@ -12,6 +13,9 @@ The best features of omm are:
 * It has no dependencies. You only need a C++17 compiler.
 * omm creates the necessary tables of pointers in compile time. So, no runtime overhead creating the tables.
 * omm offers template open multi-methods. See [below] for more information. 
+
+## Installation
+Put the `omm.h` file in your project and include it.
 
 ## A simple tutorial
 As an example, we will use matrices. For each method and their implementations we need to create a table, an 'omm table'. This table needs 3 ingredients, a template telling what the 'virtual types' are, a struct containint the implementations of the method, and all the classes that participate in the selection of the correct implementation once the method is called. 
