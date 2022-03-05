@@ -1,67 +1,54 @@
 # omm (Open Multi-Methods)
-Este repositorio consta de un único fichero que nos da la opción de usar open multi-methods en C++. Jean-Louis Leroy explica de maravilla en su repositorio [yomm2](https://github.com/jll63/yomm2) el por qué es necesario este tipo de herramienta, aquí escribiré un resumen.
+This project is an unique file which offers open multi-methods. I was inspired by the library made by Jean-Louis Leroy named [yomm2](https://github.com/jll63/yomm2).
 
-## El problema de expresión
-En muchas ocasiones creamos clases que deben usarse mutuamente y nos encontramos con diversas opciones válidas de implementar una funcionalidad. Supón el caso de una librería con matrices. Existen numerosos tipos de matrices y nos gustaría aprovechar al máximo las características de cada uno para optimizar las operaciones que hagamos con ellas. Y es que no es lo mismo sumar dos matrices de manera 'cotidiana' (sumar cada uno de los valores de ambas matrices) que sumar dos matrices diagonales (sumar únicamente los valores de las diagonales). Otro problema a tratar es en qué clase implementamos cada método. ¿Implementamos el método suma en la clase matriz_diagonal y que reciba un argumento de tipo matriz_invertible, o lo implementamos en la clase matriz_invertible y que reciba un argumento de tipo matriz_diagonal? Todo esto se puede solucionar con los open multi-methods. Ahí va un ejemplo de cómo implementaríamos la función suma para las matrices:
+## Why omm?
+The best features of omm are:
+* It has no dependencies. You only need a C++17 compiler.
+* omm creates the necessary tables of pointers in compile time. So, no runtime overhead creating the tables.
+* omm offers template open multi-methods. See [below] for more information. 
 
-```C++
-class Matriz{...};
+## A simple tutorial
+As an example, we will use matrices. For each method and their implementations we need to create a table, an 'omm table'. This table needs 3 ingredients, a template telling what the 'virtual types' are, a struct containint the implementations of the method, and all the classes that participate in the selection of the correct implementation once the method is called. 
 
-class Diagonal : public Matriz{...};
-class Invertible : public Matriz{...};
-class Ortogonal : public Matriz{...};
+First, consider the following matrix classes:
 
-Matriz* suma(virtual Matriz* m1, virtual Matrix* m2);   // <-- Plantilla de la función suma. Usamos virtual para indicar qué 
-                                                     //     parametros son los que deseamos especializar
+```
+class Matrix{
+  virtual ~Matrix(){}     //<---- The base class must have a virtual method.
+  //...
+};
 
-Matriz* suma(Diagonal* d1, Diagonal* d2){
-  // Implementacion de la suma de dos matrices ortogonales
+class Diagonal : public Matrix{
+  //...
 }
 
-Matriz* suma(Ortogonal* o, Diagonal* d){
-  // Implementacion de la suma de una matriz ortogonal y una matriz diagonal
+class Orthogonal : public Matrix}{
+  //...
 }
 
-Matriz* suma(Invertible* i, Ortogonal* o){
-  // Implementacion de la suma de una matriz invertible y una matriz ortogonal 
-}
-
-// ...
-
-int main(){
-
-  Matriz* m1 = new Diagonal();
-  Matriz* m2 = new Ortogonal();
-
-  std::cout << matrix_to_string(suma(m1,m2)) << std::endl;
-
+class Invertible : public Matrix{
+  //...
 }
 ```
-Observa que gracias a los open multi-methods estamos resolviendo también el problema del multiple dispatch. Además hay que comentar que se admiten cualquier cantidad de argumentos virtuales y no virtuales, y sin un orden en concreto.
 
-## Open multi-methods en C++
-No hay. Así que hay que usar librerías alternativas.
+Note that the base class must have a virtual method. In fact, every class that could appear in the template (see the next section) must be polymorphic, in other words, must have at least a virtual method.
 
-## ¿yomm2 ó omm?
-Las principales diferencias son las siguientes:
-* yomm2 lleva mucho tiempo actualizándose y mejorándose, mientras que omm acaba de salir del horno. Si vas a usar este tipo de soluciones en un programa donde los fallos pueden ser fatales usa yomm2.
-* yomm2 depende de 3 librerías de Boost. omm no depende de nada.
-* yomm2 crea sus tablas de punteros a funciones en tiempo de ejecución. omm las crea en tiempo de compilación.
-* yomm2 usa una forma natural de implementar los métodos, como en el ejemplo de las matrices de arriba. omm es feillo y artificioso.
+### 1st ingredient, the template
+The template is the function signature of the open multi-methods we are creating. In this case we want to add two matrices and return the result. We need to indicate this signature using 'WithSignature':
 
-Como verás cada librería tiene sus ventajas e inconvenientes. Usa la que más te convenga.
-
-## Usando omm
-Como ejemplo usaremos las matrices. Para cada método y sus especializaciones necesitamos crear una tabla, una `table_omm`. Esta tabla necesita 3 ingredientes, una plantilla para indicar que parámetros son virtuales y cuáles no, una clase que contenga las especializaciones del método, y todas las clases que van a participar en la elección de la especialización correcta.
-
-### Ingrediente 1, la plantilla
-La plantilla es el tipo de función que tenemos pensado especializar. En este caso queremos sumar dos matrices y devolver el resultado, por lo que el tipo de función será la siguiente:
 ```C++
-using suma_template = WithSignature<Matriz*(Virtual<Matriz*>,Virtual<Matriz*>)>;
+using add_template = WithSignature<Matrix*(Virtual<Matrix*>,Virtual<Matrix*>)>;
 ```
-Observa que usamos `Virtual` para indicar que cada parámetro, en este caso un puntero a matriz, se va a sustituir en cada especialización por la clase hija correspondiente. Además, debemos usar WithSignature para terminar de preparar esta información.
 
-### Ingrediente 2, las especializaciones dentro de una clase o struct
+This signature is telling that the open multi-method will receive two pointers to objects of type Matrix or some og their daughter classes (Diagonal, Orthogonal or Invertible), and it will return a pointer to a Matrix. Note that we wrote `Virtual<Matriz*>` to indicate the parameters could be a derived class of Matrix. Only the parameters could be `Virtual` and these types can appear in any order. A more complex example could involve `Virtual` and non-`Virtual` types:
+
+```C++
+using complex_template = WithSignature<int(Virtual<BaseClass*>,int,float,Virtual<BaseClass2&>,Virtual<const BaseClass1&>,char)>
+```
+
+As you can see, `Virtual` types can be pointer or reference, and they can have cv-qualifiers too. 
+
+### 2nd ingredient, the implementations
 De alguna forma tenemos que indicar a `table_omm` donde están las funciones que debe usar. Para ello le pasaremos una clase que contenga cada especialización. La visibilidad de cada método debe ser pública para que `table_omm` pueda acceder, por lo que recomiendo usar `struct` en lugar de `class`. Asegúrate también de que cada especialización tenga el modificador `static` para poder acceder a ellas sin tener que crear ningún objeto. Por último, el nombre las especializaciones debe llamarse implementation.
 ```C++
 struct suma_matrices{ // <-- Asegúrate de tener visibilidad pública, por eso recomiendo usar struct
