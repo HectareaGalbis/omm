@@ -54,7 +54,7 @@ using complex_template = WithSignature<int(Virtual<BaseClass*>,int,float,Virtual
 
 As you can see, `Virtual` types can be pointer or reference, and they can have cv-qualifiers too. 
 
-### 2nd ingredient, WithImplementations
+### 2nd ingredient: WithImplementations
 Somehow, we need to tell omm where the implementations are. To do that, we are going to create a struct containing all the implementations and we will pass it to omm later. The visibility of each implementation must be public, so we use a struct instead of a class (you can create a class if you want of course). Also, make sure every function is `static`. Lastly, the name of each implementation must be `implementation`:
 
 ```C++
