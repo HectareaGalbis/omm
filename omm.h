@@ -787,7 +787,7 @@ using cartesian_product_t = typename cartesian_product<LS...>::type;
 
 /**
 *   Returns a list with the numbers from zero until a given one.
-*    - M : Indicates the maximum number to generate, M minus 1.
+*    - M : Indicates that the maximum number to generate will be M.
 */
 template<typename K, typename M>
 struct less_numbers_aux : cons<K,typename less_numbers_aux<add1_t<K>,M>::type>{};
@@ -804,27 +804,11 @@ using less_numbers_t = typename less_numbers<M>::type;
 //---------------------------------------------------------------------------------
 
 /**
-*   Returns the amount of derived types from a list, where the first element is a base type and the rest
-*   are derived types.
-*    - BA : The list where the derived types are.
-*/
-template<typename BA>
-using length_of_derived = length<cdr_t<BA>>;
-
-template<typename BA>
-using length_of_derived_t = typename length_of_derived<BA>::type;
-
-template<typename BA>
-static constexpr int length_of_derived_v = length_of_derived<BA>::value;
-
-//---------------------------------------------------------------------------------
-
-/**
 *   Creates a list containing every possible combinantion of indices in the omm table.
 *    - TID : The TID type.
 */
 template<typename TID>
-struct make_indices : apply<cartesian_product,mapcar_t<less_numbers,mapcar_t<length_of_derived,TID>>>{};
+struct make_indices : apply<cartesian_product,mapcar_t<less_numbers,mapcar_t<length,TID>>>{};
 
 template<typename TID>
 using make_indices_t = typename make_indices<TID>::type;
@@ -836,12 +820,12 @@ using make_indices_t = typename make_indices<TID>::type;
 
 /**
 *   Returns a list of derived types associated with the indices in KS. For each number in
-*   the list KS, a derived type is retrieved from TID whose position is that number.
+*   the list KS, a type is retrieved from TID whose position is that number.
 *    - TID : The TID type.
 *    - KS : A list containing the indices.
 */
 template<typename TID, typename KS>
-struct indices_to_types : mapcar<apply_c<nth>::template type,zip_t<mapcar_t<cdr,TID>,KS>>{};
+struct indices_to_types : mapcar<apply_c<nth>::template type,zip_t<TID,KS>>{};
 
 template<typename TID, typename KS>
 using indices_to_types_t = typename indices_to_types<TID,KS>::type;
@@ -947,42 +931,43 @@ using signature_to_function_type_t = typename signature_to_function_type<L>::typ
 //---------------------------------------------------------------------------------
 
 /**
+*   Taken from https://stackoverflow.com/questions/28309164/checking-for-existence-of-an-overloaded-member-function
 *   Checks whether an implementation exists inside the struct with all the implementations.
-*    -
+*    - F: The struct containing all the implementations.
+*    - CD: A collection representing the signature of the specific implementation method.
 */
-template<typename T>
-struct always_true : std::true_type{};
+template <typename T, typename... Dargs>
+class has_implementation_aux{
 
-template<typename F, typename... Bargs>
-struct check_implementation{
+    template <typename C, typename = decltype(C::implementation(std::declval<Dargs>()...))>
+    static std::true_type test(int);
 
-    static std::false_type check(Bargs... bargs){
-        return std::false_type();
-    }
+    template <typename C>
+    static std::false_type test(...);
 
-    template<typename... Dargs>
-    static auto check(Dargs... dargs) -> typename always_true<decltype(F::implementation(dargs...))>::type{
-        return std::true_type();
-    }
+public:
+
+    using type = decltype(test<T>(0));
+    static constexpr bool value = decltype(test<T>(0))::value;
 
 };
 
-template<typename F, typename CB, typename CD>
+template<typename F, typename CD>
 struct has_implementation{};
 
-template<typename F, typename R, typename... Bargs, typename... Dargs>
-struct has_implementation<F,collection<R,Bargs...>,collection<R,Dargs...>> : decltype(check_implementation<F,Bargs...>::check(std::declval<Dargs>()...)){};
+template<typename F, typename R, typename... Dargs>
+struct has_implementation<F,collection<R,Dargs...>> : has_implementation_aux<F,Dargs...>{};
 
-template<typename F, typename CB, typename CD>
-using has_implementation_t = typename has_implementation<F,CB,CD>::type;
+template<typename F, typename CD>
+using has_implementation_t = typename has_implementation<F,CD>::type;
 
-template<typename F, typename CB, typename CD>
-static constexpr bool has_implementation_v = has_implementation<F,CB,CD>::value;
+template<typename F, typename CD>
+static constexpr bool has_implementation_v = has_implementation<F,CD>::value;
 
 //---------------------------------------------------------------------------------
 
 /**
-*   Generates a function pointer that calls a specific implementation method after doing a cast. 
+*   Generates a function pointer that calls a specific implementation method after doing a cast.
 *    - F: The struct containing all the implementations.
 *    - BS: A tlist containing the signature of the returned function pointer.
 *    - DS: A tlist containing the signature of the specific implementation method.
@@ -1003,7 +988,7 @@ struct make_function_cell_aux<std::true_type,F,collection<R,Bargs...>,collection
 };
 
 template<typename F, typename BS, typename DS>
-struct make_function_cell : make_function_cell_aux<has_implementation_t<F,tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>,
+struct make_function_cell : make_function_cell_aux<has_implementation_t<F,tlist_to_collection_t<DS>>,
                                                    F,tlist_to_collection_t<BS>,tlist_to_collection_t<DS>>{};
 
 //---------------------------------------------------------------------------------
@@ -1059,7 +1044,7 @@ struct position_derived_runtime_aux<cons<D,S>>{
 template<typename BM>
 struct position_derived_runtime{
     static int call(const std::type_info& info){
-        return position_derived_runtime_aux<cdr_t<BM>>::call(info);
+        return position_derived_runtime_aux<BM>::call(info);
     }
 };
 
@@ -1118,7 +1103,7 @@ struct get_index_aux<Tid,cons<B,BS>,A,AS...>{
 
 template<typename T, typename TS, typename B, typename BS, typename A, typename... AS>
 struct get_index_aux<cons<T,TS>,cons<virtual_type<B>,BS>,A,AS...>{
-    static constexpr int current_multiplier = get_index_aux<TS,BS,AS...>::current_multiplier*length_of_derived_v<T>;
+    static constexpr int current_multiplier = get_index_aux<TS,BS,AS...>::current_multiplier*length_v<T>;
     static int call(A&& a, AS&&... as){
         return get_index_aux<TS,BS,AS...>::call(std::forward<AS>(as)...)
                + position_derived_runtime<T>::call(get_type_id<A>::call(std::forward<A>(a)))*get_index_aux<TS,BS,AS...>::current_multiplier;
@@ -1136,6 +1121,9 @@ struct get_index{
 //---------------------------------------------------------------------------------
 //-------------------------- Putting it all together  -----------------------------
 //---------------------------------------------------------------------------------
+
+template<typename T>
+struct Debug{};
 
 /**
 *   Uses all the metafunctions defined above to create the omm table and allows to the
