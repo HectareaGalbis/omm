@@ -6,6 +6,7 @@ This project is an unique file which offers open multi-methods. I was inspired b
 * [Why omm?](https://github.com/Hectarea1996/omm#why-omm)
 * [Installation](https://github.com/Hectarea1996/omm#installation)
 * [A simple tutorial](https://github.com/Hectarea1996/omm#a-simple-tutorial)
+* [Template Open Multi-Methods](https://github.com/Hectarea1996/omm#template-open-multi-methods)
 
 ## Why omm?
 The best features of omm are:
