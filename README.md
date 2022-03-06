@@ -1,5 +1,5 @@
 # omm (Open Multi-Methods)
-This project is an unique file which offers open multi-methods. I was inspired by the library made by Jean-Louis Leroy named [yomm2](https://github.com/jll63/yomm2).
+This project is an unique file which offers template open multi-methods. I was inspired by the library made by Jean-Louis Leroy named [yomm2](https://github.com/jll63/yomm2).
 
 ## Index
 
