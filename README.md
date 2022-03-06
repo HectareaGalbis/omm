@@ -315,3 +315,5 @@ Output:
 Adding a canon vector and a simple vector
 Adding two unit vectors
 ```
+
+This example is in the Examples directory. 
