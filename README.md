@@ -161,7 +161,7 @@ class UnitVector : public Vector<T,N>{
 };
 ```
 
-Note that the implementation of the `+` operator must be in the header because `Vector` is a template class. However, we may need to include the rest of the daughter classes for being able of implement all the specializations. So, the next code will cause a cyclic dependency and the project will not compile:
+Note that the implementation of the `+` operator must be in the header because `Vector` is a template class. However, we may need to include the rest of the daughter classes for being able to implement all the specializations. So, the next code will cause a cyclic dependency and the project will not compile:
 
 ```C++
 // Vector.h
