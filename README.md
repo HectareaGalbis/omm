@@ -12,7 +12,7 @@ This project is an unique file which offers open multi-methods. I was inspired b
 The best features of omm are:
 * It has no dependencies. You only need a C++17 compiler.
 * omm creates the necessary tables of pointers in compile time. So, no runtime overhead creating the tables.
-* omm offers template open multi-methods. See [below] for more information. 
+* omm offers template open multi-methods. See [here](https://github.com/Hectarea1996/omm#template-open-multi-methods) for more information. 
 
 ## Installation
 Put the omm.h file in your project and include it.
