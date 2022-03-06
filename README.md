@@ -117,4 +117,200 @@ Note that `add` and `call` has the same signature as the implementations.
 
 You can see another example in the examples directory using two base classes, `Animal` and `Shape`.
 
+## Template open multi-methods
+All the parameters that the omm table needs are types. So, we can use template parameters in our table. To illustrate how to do this, we will show how to create a method that adds two vectors of dependent inner type and size. Also, we will indicate the files where the code is written and we will see how to avoid cyclic dependencies.
 
+```C++
+// Vector.h
+
+template<typename T, unsigned int N>
+class Vector{
+    //...
+    public:
+        virtual ~Vector(){}   // We need at least a virtual method.
+        
+        Vector<T,N> operator+(const Vector<T,N>& other) const;
+
+};
+```
+
+Our objective will be to implement the `+` operator using multiple dispatch.
+
+Another two vectors that specialize the first one:
+
+```C++
+// CanonVector.h
+
+#include "Vector.h"
+
+template<typename T, unsigned int N>
+class CanonVector : public Vector<T,N>{
+    //...
+};
+```
+
+```C++
+// UnitVector.h
+
+#include "Vector.h"
+
+template<typename T, unsigned int N>
+class UnitVector : public Vector<T,N>{
+    //...
+};
+```
+
+Note that the implementation of the `+` operator must be in the header because `Vector` is a template class. However, we may need to include the rest of the daughter classes for being able of implement all the specializations. So, the next code will cause a cyclic dependency and the project will not compile:
+
+```C++
+// Vector.h
+
+#include "omm.h"
+#include "CanonVector.h"
+#include "UnitVector"
+
+template<typename T, unsigned int N>
+class Vector{
+    //...
+    public:
+        virtual ~Vector(){}   // We need at least a virtual method.
+        
+        Vector<T,N> operator+(const Vector<T,N>& other) const;
+
+};
+
+// ----------------------
+// Implementation here???
+// ----------------------
+```
+
+We can solve this by putting the implementations in a separate file. 
+
+```C++
+// VectorOperations.h
+
+#include "omm.h"
+#include "Vector.h"
+#include "UnitVector.h"
+#include "CanonVector.h"
+
+// -------------------
+// Implementation here
+// -------------------
+```
+
+Only one problem left. If we want to use the functions defined in this file, we must to include it. Ideally, we should include just the `Vector.h` file. For this, we only need to add this include at the end of the `Vector.h` file.
+
+
+```C++
+// Vector.h
+
+template<typename T, unsigned int N>
+class Vector{
+    //...
+    public:
+        virtual ~Vector(){}   // We need at least a virtual method.
+        
+        Vector<T,N> operator+(const Vector<T,N>& other) const;
+
+};
+
+#include "VectorOperations.h"
+```
+
+Finally, let's complete the implementations. The struct containing the implementations must be a template struct with the desired arguments.
+
+```C++
+// VectorOperations.h
+
+#include "omm.h"
+#include "Vector.h"
+#include "UnitVector.h"
+#include "CanonVector.h"
+
+template<typename T, unsigned int N>
+struct add_vectors_impl{
+
+    static Vector<T,N> implementation(const Vector<T,N>& v1, const Vector<T,N>& v2){
+        std::cout << "Adding two simple vectors" << std::endl;
+        return v1;
+    }
+
+    static Vector<T,N> implementation(const CanonVector<T,N>& v1, const Vector<T,N>& v2){
+        std::cout << "Adding a canon vector and a simple vector" << std::endl;
+        return v1;
+    }
+
+    static Vector<T,N> implementation(const UnitVector<T,N>& v1, const UnitVector<T,N>& v2){
+        std::cout << "Adding two unit vectors" << std::endl;
+        return v1;
+    }
+
+};
+
+// ----------------------
+// The table will be here
+// ----------------------
+
+// -----------------------
+// The method will be here
+// -----------------------
+```
+
+Lastly, we create the table with the rest of the information and we implement the `+` operator.
+
+```C++
+// VectorOperations.h
+
+#include "omm.h"
+#include "Vector.h"
+#include "UnitVector.h"
+#include "CanonVector.h"
+
+template<typename T, unsigned int N>
+struct add_vectors_impl{
+
+   //...
+
+};
+
+template<typename T, unsigned int N>
+using add_vectors_table = table_omm<WithImplementations<add_vectors_impl<T,N>>,
+                                    WithSignature<Vector<T,N>(Virtual<const Vector<T,N>&>,Virtual<const Vector<T,N>&>)>,
+                                    WithDerivedTypes<UnitVector<T,N>, CanonVector<T,N>>>;
+
+template<typename T, unsigned int N>
+Vector<T,N> Vector<T,N>::operator+(const Vector<T,N>& other) const{
+    return add_vectors_table<T,N>::call(*this,other);
+}
+```
+
+Now we can add vectors using multiple dispatch.
+
+```C++
+// main.cpp
+
+#include "Vector.h"
+#include "CanonVector.h"
+#include "UnitVector.h"
+
+int main(){
+
+    CanonVector<int,3> v1;
+    CanonVector<int,3> v2;
+    v1+v2;
+    
+    UnitVector<float,5> v3;
+    UnitVector<float,5> v4;
+    v3+v4;
+
+    return 0;
+
+}
+```
+
+```
+Output:
+Adding a canon vector and a simple vector
+Adding two unit vectors
+```
