@@ -5,6 +5,7 @@ This project is an unique file which offers open multi-methods. I was inspired b
 
 * [Why omm?](https://github.com/Hectarea1996/omm#why-omm)
 * [A simple tutorial](https://github.com/Hectarea1996/omm#a-simple-tutorial)
+* [A real example](https://github.com/Hectarea1996/omm#a-real-example)
 * [Template open multi-methods](https://github.com/Hectarea1996/omm#template-open-multi-methods)
 
 ## Why omm?
@@ -14,7 +15,7 @@ The best features of omm are:
 * omm offers template open multi-methods. See [below] for more information. 
 
 ## A simple tutorial
-As an example, we will use matrices. For each method and their implementations we need to create a table, an 'omm table'. This table needs 3 ingredients, a template telling what the 'virtual types' are, a struct containint the implementations of the method, and all the classes that participate in the selection of the correct implementation once the method is called. 
+As an example, we will use matrices. For each method and their implementations we need to create a table, an 'omm table'. This table needs 3 ingredients, a function signature telling what the 'virtual types' are, a struct containing the implementations of the method, and all the classes that participate in the selection of the correct implementation once the method is called. 
 
 First, consider the following matrix classes:
 
@@ -37,22 +38,22 @@ class Invertible : public Matrix{
 }
 ```
 
-Note that the base class must have a virtual method. In fact, every class that could appear in the template (see the next section) must be polymorphic, in other words, must have at least a virtual method.
+Note that the base class must have a virtual method. In fact, every virtual class that could appear in the signature (see the next section) must be polymorphic, in other words, must have at least a virtual method.
 
 ### 1st ingredient: WithSignature
-The template is the function signature of the open multi-methods we are creating. In this case we want to add two matrices and return the result. We need to indicate this signature using 'WithSignature':
+In this case we want to add two matrices and return the result. We need to indicate this signature using 'WithSignature':
 
 ```C++
 using add_template = WithSignature<Matrix*(Virtual<Matrix*>,Virtual<Matrix*>)>;
 ```
 
-This signature is telling that the open multi-method will receive two pointers to objects of type `Matrix` or some og their daughter classes (`Diagonal`, `Orthogonal` or `Invertible`), and it will return a pointer to a `Matrix`. Note that we wrote `Virtual<Matrix*>` to indicate the parameters could be a derived class of `Matrix`. Only the parameters can be `Virtual` and these types can appear in any order. A more complex example could involve `Virtual` and non-`Virtual` types:
+This signature is telling that the open multi-method will receive two pointers to objects of type `Matrix` or some of their daughter classes (`Diagonal`, `Orthogonal` or `Invertible`), and it will return a pointer to a `Matrix`. Note that we wrote `Virtual<Matrix*>` to indicate the parameters could be a derived class of `Matrix`. Only the parameters can be `Virtual` and these types can appear in any order. A more complex example could involve `Virtual` and non-`Virtual` types:
 
 ```C++
 using complex_template = WithSignature<int(Virtual<BaseClass*>,int,float,Virtual<BaseClass2&>,Virtual<const BaseClass1&>,char)>
 ```
 
-As you can see, `Virtual` types can be pointer or reference, and they can have cv-qualifiers too. 
+As you can see, `Virtual` types can be a pointer or a reference, and they can have cv-qualifiers too. 
 
 ### 2nd ingredient: WithImplementations
 Somehow, we need to tell omm where the implementations are. To do that, we are going to create a struct containing all the implementations and we will pass it to omm later. The visibility of each implementation must be public, so we use a struct instead of a class (you can create a class if you want of course). Also, make sure every function is `static`. Lastly, the name of each implementation must be `implementation`:
@@ -77,7 +78,7 @@ struct add_matrices{ // <-- Make sure the visibility of all the implementations 
 }
 
 // We store the struct using WithImplementations
-using struct_implementations = WithImplementations<suma_matrices>;
+using struct_implementations = WithImplementations<add_matrices>;
 ```
 
 Note that we use `WithImplementations` to store the struct containing all the implementations. Also, observe that the signature of each implementation respects the signature passed to `WithSignature` in the previous section. The parameters are pointers to derived types of `Matrix` and the result is of type a pointer to `Matrix`.
@@ -111,6 +112,8 @@ Matriz* add(Matriz* m1, Matriz* m2){ // <-- Make sure the parameters and the res
 ```
 
 Note that `add` and `call` has the same signature as the implementations. 
+
+## A real example
 
 ## Template open multi-methods
 
